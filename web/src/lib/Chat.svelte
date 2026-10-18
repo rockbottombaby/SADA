@@ -213,6 +213,7 @@ Use the map_* tools to show what your answer is about. Each call REPLACES what i
   let caseOpen = $state(false);
   // "Ask the assistant" from the Explore results: put the text in the input, ready to send or edit
   $effect(() => { if (app.chatDraft) { input = app.chatDraft; app.chatDraft = ''; queueMicrotask(() => composerEl?.focus()); } });
+  $effect(() => { if (app.composerFocus) setTimeout(() => composerEl?.focus(), 50); });
 </script>
 
 <div class="wrap">

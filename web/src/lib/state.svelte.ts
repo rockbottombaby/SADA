@@ -42,6 +42,7 @@ export const app = $state({
   },
   loading: { step: '', progress: 0 },  // splash screen
   chatDraft: '',
+  composerFocus: 0,                   // bumped to put the cursor in the question box (e.g. after "Start asking")
   lastLegs: { title: '', legs: [] as Leg[] },  // the most recent flight list a chat answer produced (for "map all of these")                       // text handed to the chat input ("Ask the assistant about these")
   // floating inspector over the map
   selected: null as Leg | null,

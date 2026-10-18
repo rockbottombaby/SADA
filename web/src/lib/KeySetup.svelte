@@ -60,7 +60,7 @@
         <div class="tick">✓</div>
         <div><b>Connected. The assistant is ready.</b><p>{#if viaOpenRouter}Signed in with OpenRouter · {orModel(settings.openrouterModel).label.replace(/ · (fast|balanced|deep)$/, '')}{#if credits && Number.isFinite(credits.balance)} · ${credits.balance.toFixed(2)} of credit left{/if}. Change the model under the question box. <a href={OPENROUTER_CREDITS_URL} target="_blank" rel="noopener noreferrer">Add credits ↗</a>{:else}Your Anthropic key is saved in this browser only.{/if}</p></div>
       </div>
-      <div class="row"><button class="ghost" onclick={remove}>{viaOpenRouter ? 'Sign out' : 'Remove key'}</button><span class="sp"></span><button class="primary" onclick={close}>Start asking</button></div>
+      <div class="row"><button class="ghost" onclick={remove}>{viaOpenRouter ? 'Sign out' : 'Remove key'}</button><span class="sp"></span><button class="primary" onclick={() => { close(); app.composerFocus++; }}>Start asking</button></div>
     {:else}
       <div class="or">
         <div><b>Sign in with OpenRouter</b><p>Log in with OpenRouter to enable your AI model. Claude, GPT, Gemini and more; you pay only for what you use.</p></div>
