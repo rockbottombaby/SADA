@@ -84,10 +84,9 @@
     <p class="lead" title="Fill in what you know and leave the rest empty. Data covers {cov[0]} to {cov[cov.length - 1]}; some days may be missing.">Fill in what you know.</p>
 
     <div class="form">
-      <div class="two">
-        <EntityField label="From" placeholder="Country or airport" kinds="place" bind:value={builder.q.from} />
-        <EntityField label="To" placeholder="Country or airport" kinds="place" bind:value={builder.q.to} />
-      </div>
+      <!-- one per row: a picked place (name + code) needs the full width -->
+      <EntityField label="From" placeholder="Country or airport" kinds="place" bind:value={builder.q.from} />
+      <EntityField label="To" placeholder="Country or airport" kinds="place" bind:value={builder.q.to} />
       <label class="check" title="Also include flights in the opposite direction (or, with only one place, flights to and from it)"><input type="checkbox" bind:checked={builder.q.both} /> Both directions</label>
       <EntityField label="Through airspace" placeholder="A country or flight region" kinds="zone" bind:value={builder.q.through} />
       <EntityField label="Aircraft, airline or callsign" placeholder="Tail number, airline or callsign" kinds="subject" bind:value={builder.q.subject} />
@@ -175,7 +174,7 @@
   h2 { margin: 8px 0 6px; font-size: 18px; font-weight: 600; letter-spacing: -.2px; }
   .lead { cursor: help; margin: 0 0 16px; color: var(--muted); font-size: 12.5px; line-height: 1.55; } .lead b { color: var(--ink); font-weight: 500; font-family: var(--mono); font-size: 11.5px; }
   .form { display: flex; flex-direction: column; gap: 14px; border-top: 1px solid var(--line); padding-top: 18px; }
-  .two { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  .two { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 8px; }   /* columns may shrink; content never pushes the other one */
   .check { display: flex; align-items: center; gap: 8px; font-size: 12px; color: var(--muted); margin-top: -6px; cursor: pointer; }
   .period .label { margin-bottom: 8px; } .period.need .label { color: var(--obs); }
   .chips { display: flex; flex-wrap: wrap; gap: 5px; }

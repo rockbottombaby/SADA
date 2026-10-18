@@ -86,8 +86,9 @@
   .ef { position: relative; }
   .field input { width: 100%; }
   .chip { display: flex; align-items: center; gap: 8px; border: 1px solid var(--ink); border-radius: var(--r); padding: 9px 8px 9px 14px; min-height: 44px; }
-  .chip b { font-weight: 600; font-size: 13px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .chip small { color: var(--muted); font-size: 9.5px; text-transform: uppercase; letter-spacing: 1.2px; white-space: nowrap; }
+  .chip b { font-weight: 600; font-size: 13px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
+  .chip small { color: var(--muted); font-size: 9.5px; text-transform: uppercase; letter-spacing: 1.2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; flex: none; max-width: 45%; }
+  .chip .x { margin-left: auto; flex: none; }
   .x { margin-left: auto; border: 0; padding: 2px 6px; letter-spacing: 0; color: var(--muted); font-size: 12px; }
   .x:hover { background: transparent; color: var(--ink); }
   .drop { position: absolute; z-index: 20; left: 0; right: 0; top: 100%; margin-top: 4px; background: var(--bg); border: 1px solid var(--ink); border-radius: var(--r); overflow: hidden; box-shadow: 0 12px 30px rgba(0,0,0,.5); }
