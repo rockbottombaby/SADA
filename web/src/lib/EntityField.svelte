@@ -24,7 +24,10 @@
     if (q.length < 2) { opts = []; return; }
     const out: Entity[] = [];
     const ql = q.toLowerCase();
-    const run = async (sql: string) => { try { return await app.ctx!.query(sql); } catch { return []; } };
+    // what is known without a database read (countries, a callsign or registration pattern) shows at once; the database
+    // matches are appended when they arrive (the registry's first read takes seconds), unless the text has changed since
+    const show = () => { if (text.trim() === q && out.length) { opts = [...out]; sel = 0; open = true; } };
+    const run = async (sql: string) => { show(); try { const r = await app.ctx!.query(sql); return text.trim() === q ? r : []; } catch { return []; } };
     if (kinds === 'place') {
       await countriesP;
       // names starting with the typed text first, then larger countries (prio = minus area)
@@ -49,6 +52,7 @@
         GROUP BY 1 ORDER BY 2 DESC LIMIT 5`);
       for (const r of co) out.push({ kind: 'company', value: String(r.name), label: String(r.name), hint: `company · ${r.n} aircraft in the registry` });
     }
+    if (text.trim() !== q) return;   // typed on meanwhile: a newer suggest() owns the list
     opts = out; sel = 0; open = true;
   }
   function onInput() { clearTimeout(timer); timer = setTimeout(() => suggest(text), 180); }

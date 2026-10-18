@@ -18,8 +18,11 @@
   import { app, selectLeg } from './lib/state.svelte';
   import { settings, saveSettings } from './lib/prefs.svelte';
   import { finishOpenRouterSignIn } from './lib/openrouter';
-  import { openDb, loadManifest, queryWithin, cancelCurrent } from './lib/db';
+  import { openDb, loadManifest, queryWithin, cancelCurrent, pending } from './lib/db';
   import { warmCache } from './lib/tools';
+  // a launch notice at the bottom until dismissed (remembered in this browser)
+  let snack = $state((() => { try { return !localStorage.getItem('sada.notice1'); } catch { return true; } })());
+  const dismissSnack = () => { snack = false; try { localStorage.setItem('sada.notice1', '1'); } catch { /* storage blocked */ } };
   import { currentTrail } from './lib/trail.svelte';
   import { setDbCancel } from './lib/agent';
   import { setupViews, type Ctx, type ZoneMeta } from './lib/tools';
@@ -58,7 +61,7 @@
       // start on the latest week: whole-archive queries are possible but slow in the browser
       // no preset period: the user chooses one in the search form
       app.ready = true;
-      setTimeout(() => warmCache(ctx), 1500);   // after the first paint: the latest months' footers into the cache
+      setTimeout(() => warmCache(ctx, () => pending() > 0), 1500);   // after the first paint, between the user's queries: footers and the registry into the cache
       app.status = '';
       const h = new URLSearchParams(location.hash.slice(1));
       if (h.get('leg')) selectLeg(h.get('leg')!);
@@ -115,6 +118,13 @@
 <Coffee />
 <KeySetup />
 <Memorial />
+{#if snack && app.ready}
+  <div class="snack" role="status">
+    <i></i>
+    <span>Just launched. I’m fixing the first issues as they come up, so a search may hang now and then; updates go out as they’re ready.</span>
+    <button class="x" aria-label="Dismiss" title="Dismiss" onclick={dismissSnack}>✕</button>
+  </div>
+{/if}
 
 {#if !app.ready && !app.error}
   <div class="splash" role="status" aria-live="polite">
@@ -152,6 +162,11 @@
   .stage { flex: 1; position: relative; min-width: 320px; }
   .right { width: 400px; flex: none; background: var(--bg); border-left: 1px solid var(--line); display: flex; flex-direction: column; min-height: 0; }
   .err { padding: 40px; max-width: 700px; }
+  .snack { position: fixed; z-index: 45; left: 50%; bottom: 18px; transform: translateX(-50%); display: flex; align-items: center; gap: 12px; max-width: min(640px, calc(100vw - 32px));
+    padding: 10px 12px 10px 16px; background: rgba(20,20,20,.97); border: 1px solid var(--line2); border-radius: var(--r); box-shadow: 0 16px 40px rgba(0,0,0,.5); font-size: 12.5px; line-height: 1.45; color: var(--text); }
+  .snack i { width: 8px; height: 8px; border-radius: 50%; background: var(--obs, #f2c14e); flex: none; }
+  .snack .x { border: 0; background: none; padding: 4px 6px; color: var(--muted); font-size: 12px; cursor: pointer; flex: none; }
+  .snack .x:hover { color: var(--ink); background: none; }
   .splash { position: fixed; inset: 0; z-index: 100; background: #000; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 22px; animation: in .3s ease-out; }
   @keyframes in { from { opacity: 0; } }
   /* the eye, watching, with two thin rings turning around it */

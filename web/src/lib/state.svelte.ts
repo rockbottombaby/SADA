@@ -110,9 +110,11 @@ export function describeScene() {
   return `"${sc.title}" drawn by ${sc.by === 'you' ? 'the user' : sc.chat && sc.chat !== app.map.activeChat ? 'the assistant in another chat tab' : 'you (the assistant)'}: ${parts.join(', ') || 'nothing'}`;
 }
 
-export async function tool(name: string, args: Record<string, unknown>) {
+// signal: aborting it skips the tool's queued database queries and stops the running one (a search the user has left)
+export async function tool(name: string, args: Record<string, unknown>, signal?: AbortSignal) {
   const t = TOOLS.find(x => x.name === name)!;
-  return t.run(app.ctx!, args) as Promise<any>;
+  const ctx = signal ? { ...app.ctx!, query: (sql: string) => app.ctx!.query(sql, signal) } : app.ctx!;
+  return t.run(ctx, args) as Promise<any>;
 }
 
 // Select a flight and draw its track. The details overlay opens only on a user action (open = true);

@@ -20,15 +20,23 @@
     needPeriod = false;
     app.explore = { kind: 'query', spec: $state.snapshot(builder.q) as QuerySpec };
   }
+  // one search at a time: starting another (or leaving) stops the previous one's queries, so nothing waits behind a search
+  // the user has abandoned
+  let job: AbortController | null = null;
+  const stopSearch = () => { job?.abort(); job = null; };
   async function load(spec: QuerySpec) {
+    stopSearch();
+    const mine = (job = new AbortController());
     busy = true; err = ''; res = null; filter = '';
     const t = performance.now();
     try {
       const args = toArgs(spec);
       [app.dateFrom, app.dateTo] = periodDates(spec.period);
-      res = await tool('find_flights', { ...args, limit: 3000 });
+      const r = await tool('find_flights', { ...args, limit: 3000 }, mine.signal);
+      if (mine.signal.aborted) return;
+      res = r;
       showFlows(res.flights as Leg[], describe(spec), spec.through ? { zone: spec.through.value } : {});
-    } catch (e) { err = String(e).replace(/^Error: /, ''); }
+    } catch (e) { if (mine.signal.aborted) return; err = String(e).replace(/^Error: /, ''); }
     busy = false; seconds = (performance.now() - t) / 1000;
   }
   async function loadArea(ring: [number, number][]) {
@@ -57,7 +65,7 @@
     const [a, b] = route.split(' → ');
     refine({ from: a && a !== '?' ? ent('airport', a) : null, to: b && b !== '?' ? ent('airport', b) : null, both: false });
   }
-  function home(keep = true) { app.explore = { kind: 'home' }; res = null; if (!keep) { builder.q = blankQuery(); if (app.map.scene?.by === 'you') clearScene(); } }
+  function home(keep = true) { stopSearch(); busy = false; app.explore = { kind: 'home' }; res = null; if (!keep) { builder.q = blankQuery(); if (app.map.scene?.by === 'you') clearScene(); } }
   function ask() {
     const v = app.explore; if (v.kind !== 'query') return;
     app.chatDraft = `${describe(v.spec)}: what stands out, and what should I look at next? (Search used: find_flights ${JSON.stringify(toArgs(v.spec))})`;
@@ -110,7 +118,10 @@
       <button class="primary go" disabled={isEmpty(builder.q)} onclick={find} title={isEmpty(builder.q) ? 'Fill in at least one of: from, to, airspace, or aircraft / airline' : periodDays(builder.q.period) > 120 ? 'Long periods search many months of data and take longer' : ''}>Find flights</button>
     </div>
 
-    <button class="link" onclick={() => (app.map.drawMode = true)}>Or draw an area on the map →</button>
+    <div class="links">
+      <button class="link" onclick={() => (app.map.drawMode = true)}>Or draw an area on the map →</button>
+      {#if !isEmpty(builder.q)}<button class="link" onclick={() => (builder.q = blankQuery())} title="Empty every field">Clear</button>{/if}
+    </div>
   </div>
 {:else}
   <div class="bar">
@@ -122,9 +133,11 @@
   </div>
   <div class="body">
     {#if busy}
-      <div class="loading"><span class="spin"></span>Searching{app.explore.kind === 'query' && periodDays(app.explore.spec.period) > 120 ? ' many months of data, this can take a minute' : ''}…</div>
+      <div class="loading"><span class="spin"></span>Searching{app.explore.kind === 'query' && periodDays(app.explore.spec.period) > 120 && !app.explore.spec.from && !app.explore.spec.to && !app.explore.spec.through ? ' month by month: an aircraft or company over a long period takes a while' : ''}…</div>
+      <div class="acts"><button onclick={() => home(false)} title="Clear and start a new search">New search</button></div>
     {:else if err}
       <div class="err">{err}</div>
+      <div class="acts"><button onclick={() => home(true)} title="Edit the search">Edit the search</button><button onclick={() => home(false)} title="Clear and start a new search">New search</button></div>
     {:else if res}
       <div class="kpis">
         <div><b>{Number(res.totals.flights).toLocaleString()}</b><span>flights</span></div>
@@ -143,7 +156,7 @@
 
       {#if res.top_routes.length || res.top_companies.length}
         <div class="tops">
-          {#if res.top_routes.length}<div><h4 class="label">Routes</h4>{#each res.top_routes.slice(0, 5) as r}<button class="tr" onclick={() => refineRoute(String(r.value))} title="Narrow to this route"><span>{r.value}</span><b>{r.flights}</b></button>{/each}</div>{/if}
+          {#if res.top_routes.length}<div><h4 class="label">Routes</h4>{#each res.top_routes.slice(0, 5) as r}<button class="tr" onclick={() => refineRoute(String(r.value))} title={String(r.value).includes('?') ? 'Narrow to this route. "?" = that end was not recorded (the aircraft was outside receiver coverage)' : 'Narrow to this route'}><span>{r.value}</span><b>{r.flights}</b></button>{/each}</div>{/if}
           {#if res.top_companies.length}<div><h4 class="label">Companies</h4>{#each res.top_companies.slice(0, 5) as r}<button class="tr" onclick={() => refine({ subject: ent('company', String(r.value)) })} title="Narrow to this company"><span>{r.value}</span><b>{r.flights}</b></button>{/each}</div>{/if}
           {#if res.top_aircraft.length}<div><h4 class="label">Aircraft</h4>{#each res.top_aircraft.slice(0, 5) as r}<button class="tr" onclick={() => refine({ subject: ent('aircraft', String(r.value)) })} title="Narrow to this aircraft"><span>{r.value} <i>{r.type ?? ''}</i></span><b>{r.flights}</b></button>{/each}</div>{/if}
           {#if res.top_destination_countries.length}<div><h4 class="label">Destinations</h4>{#each res.top_destination_countries.slice(0, 5) as r}<button class="tr" onclick={() => refine({ to: ent('country', String(r.value), countryName(r.value)) })} title="Narrow to this destination"><span>{countryName(r.value)}</span><b>{r.flights}</b></button>{/each}</div>{/if}
@@ -183,6 +196,7 @@
   .dates { margin-top: 12px; } .dates input { width: 100%; font-family: var(--mono); font-size: 12px; }
   .warn { color: var(--obs); font-size: 11.5px; margin: 8px 0 0; } .note { color: var(--faint); font-size: 11px; margin: 6px 0 0; line-height: 1.45; }
   .go { padding: 12px; font-size: 11px; }
+  .links { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; }
   .link { margin-top: 18px; border: 0; padding: 0; text-transform: none; letter-spacing: 0; font-size: 12.5px; color: var(--muted); }
   .link:hover { background: transparent; color: var(--ink); }
   .tip { color: var(--faint); font-size: 11.5px; margin: 8px 0 0; }

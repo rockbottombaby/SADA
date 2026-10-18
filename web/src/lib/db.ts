@@ -32,45 +32,55 @@ export async function cancelCurrent() { if (conn && inFlight) await conn.cancelS
 // running after five minutes is stuck, and must become an error the caller sees, never a silent hang of the queue.
 export const QUERY_BUDGET_MS = 300_000;
 let queue: Promise<unknown> = Promise.resolve();
-let qSeq = 0;
-export function query(sql: string): Promise<Record<string, unknown>[]> {
-  const run = queue.then(() => queryNow(sql));
+let qSeq = 0, waiting = 0;
+// queued or running queries: the cache warm-up stays out of the way while this is above zero
+export const pending = () => waiting;
+// A query is skipped when its signal is already aborted by the time its turn comes, and stopped if aborted while it runs:
+// a search the user has left (a new search, back to the form) must not keep the next one waiting behind it.
+export class QueryCancelled extends Error { name = 'QueryCancelled'; }
+export function query(sql: string, signal?: AbortSignal): Promise<Record<string, unknown>[]> {
+  waiting++;
+  const run = queue.then(() => (signal?.aborted ? Promise.reject(new QueryCancelled('cancelled')) : queryNow(sql, signal))).finally(() => { waiting--; });
   queue = run.catch(() => {});
   return run;
 }
-async function queryNow(sql: string): Promise<Record<string, unknown>[]> {
+async function queryNow(sql: string, signal?: AbortSignal): Promise<Record<string, unknown>[]> {
   if (!conn) throw new Error('database not open');
   inFlight++;
   const qid = ++qSeq, tq = Date.now();
   if (import.meta.env.DEV) console.debug('[q start]', qid, sql.replace(/\s+/g, ' ').slice(0, 140));   // test scripts read these
   const c = conn;
-  let timedOut = false;
+  let timedOut = false, cancelled = false;
   let fail: (e: Error) => void = () => {};
   const limit = new Promise<never>((_, reject) => { fail = reject; });
   const timer = setTimeout(() => { timedOut = true; c.cancelSent().catch(() => {}); fail(new QueryTimeout(`stopped after ${QUERY_BUDGET_MS / 1000} s`)); }, QUERY_BUDGET_MS);
+  const onAbort = () => { cancelled = true; c.cancelSent().catch(() => {}); fail(new QueryCancelled('cancelled')); };
+  signal?.addEventListener('abort', onAbort, { once: true });
   try {
     const reader = await Promise.race([c.send(sql), limit]);
     const rows: Record<string, unknown>[] = [];
     try {
       for await (const batch of reader) {
         if (timedOut) throw new QueryTimeout(`stopped after ${QUERY_BUDGET_MS / 1000} s`);
+        if (cancelled) throw new QueryCancelled('cancelled');
         for (const r of batch.toArray() as { toJSON: () => Record<string, unknown> }[]) { const o = r.toJSON(); for (const k in o) o[k] = plain(o[k]); rows.push(o); }
       }
     } catch (e) {
       // a read that fails mid-stream leaves the connection with a pending query; every later query would then return
       // nothing (which tools would report as "no flights"). Cancel it so the connection is usable again.
-      if (!timedOut) await c.cancelSent().catch(() => {});
+      if (!timedOut && !cancelled) await c.cancelSent().catch(() => {});
       throw e;
     }
     return rows;
   } catch (e) {
+    if (cancelled || e instanceof QueryCancelled) throw new QueryCancelled('cancelled');
     if (timedOut || e instanceof QueryTimeout) throw new QueryTimeout(`This query was stopped after ${QUERY_BUDGET_MS / 1000} s (stuck or far too large).`);
     // DuckDB-WASM reports failed HTTP reads (missing/unreachable data file) as an opaque WebAssembly exception
     const msg = String((e as Error)?.message ?? e);
     if (/WebAssembly\.Exception|HTTP|IO Error/i.test(msg))
       throw new Error('A data file could not be read from the data server (missing, unreachable, or being rebuilt). Check that the data server is running and the dataset build has finished, then reload.');
     throw e;
-  } finally { clearTimeout(timer); inFlight--; if (import.meta.env.DEV) console.debug('[q end]', qid, Date.now() - tq, 'ms'); }
+  } finally { clearTimeout(timer); signal?.removeEventListener('abort', onAbort); inFlight--; if (import.meta.env.DEV) console.debug('[q end]', qid, Date.now() - tq, 'ms'); }
 }
 
 // A query with a time budget (for the assistant's free-form SQL): streamed with send(), cancelled when the budget runs out,

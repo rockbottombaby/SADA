@@ -3,7 +3,7 @@
 // the manifest, the zone list and an H3 polygon->cells function.
 
 export type Row = Record<string, unknown>;
-export type QueryFn = (sql: string) => Promise<Row[]>;
+export type QueryFn = (sql: string, signal?: AbortSignal) => Promise<Row[]>;
 export interface Manifest {
   base: string; dates: string[]; legs: number; leg_zones?: number; h3_resolution: number; attribution: string[];
   files: Record<string, string>; built_utc: string;
@@ -172,14 +172,21 @@ export function keyedSrc(ctx: Ctx, kind: 'hex' | 'airport', key: string, t0: num
 // Warm DuckDB's metadata cache for the files most lookups touch first (the latest two months' flight tables and
 // sorted copies): reading a footer takes a few HTTP requests, and the cache then makes the first real lookup fast.
 // Runs after startup, one file at a time, and gives up quietly on any error.
-export async function warmCache(ctx: Ctx) {
+// It yields to the user: each step waits until no query of theirs is queued or running (queries are serialised, so a
+// warm-up step in between would hold a search up by a second).
+export async function warmCache(ctx: Ctx, busy: () => boolean = () => false) {
+  const idle = async () => { while (busy()) await new Promise(r => setTimeout(r, 1000)); };
   const months = (ctx.manifest.months ?? []).slice(-2);
   const kinds = ['legs', 'by_hex', 'zones_by_leg', 'by_airport', 'leg_zones', 'aircraft'];
   for (const m of months.reverse()) for (const k of kinds) {
     const f = ctx.manifest.files[k];
     if (!f || (k.startsWith('by_') || k === 'zones_by_leg') && !ctx.manifest.lookups?.includes(m)) continue;
+    await idle();
     try { await ctx.query(`SELECT 1 FROM read_parquet(${lit(url(ctx, f.replace('{month}', m)))}) WHERE false`); } catch { return; }
   }
+  // the aircraft registry (owner/operator per hex): every search's "Companies" joins it, 5 s cold, instant afterwards
+  await idle();
+  try { await ctx.query('SELECT count(*) FROM registry WHERE operator IS NOT NULL OR owner IS NOT NULL'); } catch { /* no registry */ }
 }
 // Search indexes (build_index.py): re-sorted copies for long periods. routes = flights sorted by country pair (per year),
 // zones = airspace crossings with flight columns sorted by airspace (per quarter). Used only when they cover every month
@@ -187,7 +194,7 @@ export async function warmCache(ctx: Ctx) {
 // side: 'to' / 'from' (routes, key = ISO2 country) or 'zone' (key = zone id). Returns read_parquet over the key's files for
 // every period overlapping the range, '(empty)' when the key has no flights in those periods, or null when the index does
 // not cover every month in the range (the caller then uses the monthly files).
-export function indexSrc(ctx: Ctx, side: 'to' | 'from' | 'zone', key: string, t0: number, t1: number): string | null {
+export function indexFiles(ctx: Ctx, side: 'to' | 'from' | 'zone', key: string, t0: number, t1: number): string[] | '(empty)' | null {
   const cat = side === 'zone' ? ctx.manifest.index?.zones : ctx.manifest.index?.routes;
   const f = ctx.manifest.files[`index_${side}`];
   if (!cat || !f || !ctx.manifest.months?.length) return null;
@@ -198,9 +205,69 @@ export function indexSrc(ctx: Ctx, side: 'to' | 'from' | 'zone', key: string, t0
   if (!need.length || need.some(m => !covered.has(m))) return null;
   const k = key || '_';
   const files = periods.filter(([, v]) => ((v as any)[side] as string[]).includes(k)).map(([p]) => p).sort()
-    .map(p => lit(url(ctx, f.replace('{key}', k.replace(':', '_')).replace('{period}', p))));
-  // by column name: index files of different builds may differ in column order or carry an extra partition column
-  return files.length ? `read_parquet([${files.join(',')}], union_by_name = true)` : '(empty)';
+    .map(p => url(ctx, f.replace('{key}', k.replace(':', '_')).replace('{period}', p)));
+  return files.length ? files : '(empty)';
+}
+// by column name: index files of different builds may differ in column order or carry an extra partition column
+const readIdx = (files: string[]) => `read_parquet([${files.map(lit).join(',')}], union_by_name = true)`;
+export function indexSrc(ctx: Ctx, side: 'to' | 'from' | 'zone', key: string, t0: number, t1: number): string | null {
+  const f = indexFiles(ctx, side, key, t0, t1);
+  return f === null || f === '(empty)' ? f : readIdx(f);
+}
+// Total size of index files (one cached HEAD each): the way to pick the smaller of two candidate indexes. 0 when unknown.
+const sizeCache = new Map<string, Promise<number>>();
+function bytesOf(files: string[]): Promise<number> {
+  return Promise.all(files.map(u => {
+    let p = sizeCache.get(u);
+    if (!p) { p = fetch(u, { method: 'HEAD' }).then(r => Number(r.headers.get('content-length')) || 0).catch(() => 0); sizeCache.set(u, p); }
+    return p;
+  })).then(s => s.reduce((a, b) => a + b, 0));
+}
+// The route index for a long period. Each end's country comes from its ISO2 code or its airport; the SMALLER country's
+// files are read (a flight Keflavík → New York is in Iceland's "from" index, a few thousand rows, and in the United States'
+// "to" index, millions). Both directions = the union of that country's "to" and "from" files. Null when the index does
+// not cover the period (the caller reads the monthly files), '(empty)' when nothing flew.
+// What reading the monthly flight files for a period costs (bytes, from the files' sizes and the share of each month in
+// the period): the route index is used whenever its files are smaller, whatever the period's length.
+async function scanBytes(ctx: Ctx, t0: number, t1: number): Promise<number> {
+  const f = ctx.manifest.files.legs;
+  if (!f?.includes('{month}') || !ctx.manifest.months?.length) return Infinity;
+  let total = 0;
+  for (const m of ctx.manifest.months) {
+    const [y, mo] = m.split('-').map(Number), a = Date.UTC(y, mo - 1, 1) / 1000, b = Date.UTC(y, mo, 1) / 1000;
+    const overlap = Math.min(b, t1) - Math.max(a, t0);
+    if (overlap <= 0) continue;
+    total += (await bytesOf([url(ctx, f.replace('{month}', m))])) * Math.min(1, overlap / (b - a));
+  }
+  return total;
+}
+async function routeIdx(ctx: Ctx, a: any, r: { t0: number; t1: number }, scanCost?: number): Promise<string | null> {
+  const country = async (v: unknown) => {
+    const x = String(v ?? '').trim().toUpperCase();
+    if (!x || x.length === 2) return x;
+    const [ap] = await ctx.query(`SELECT country FROM airports WHERE ident = ${lit(x)} LIMIT 1`).catch(() => []);
+    return ap?.country ? String(ap.country) : '';
+  };
+  const dc = await country(a.destination), oc = await country(a.origin);
+  const cands = [...new Set([dc, oc].filter(Boolean))];
+  if (!cands.length) return null;
+  const sets: { files: string[][]; bytes: number }[] = [];
+  for (const c of cands) {
+    const sides: ('to' | 'from')[] = a.both_directions ? ['to', 'from'] : c === dc ? ['to'] : ['from'];
+    const files: string[][] = [];
+    for (const s of sides) {
+      const f = indexFiles(ctx, s, c, r.t0, r.t1);
+      if (f === null) return null;
+      if (f !== '(empty)') files.push(f);
+    }
+    sets.push({ files, bytes: await bytesOf(files.flat()) });
+  }
+  sets.sort((x, y) => x.bytes - y.bytes);
+  const best = sets[0];
+  if (!best.files.length) return '(empty)';
+  if (scanCost !== undefined && best.bytes > scanCost) return null;   // the monthly files are the cheaper read here
+  // UNION (not ALL): a flight inside the country is in both its files
+  return best.files.length === 1 ? readIdx(best.files[0]) : `(${best.files.map(f => `SELECT ${LEG_COLS} FROM ${readIdx(f)}`).join(' UNION ')})`;
 }
 const LONG = 62 * 86400;   // periods longer than this use the indexes
 // Long periods without a fast index would read many monthly files in the browser (minutes). Fail fast with guidance instead.
@@ -604,7 +671,7 @@ export const TOOLS: ToolDef[] = [
   },
   {
     name: 'find_flights',
-    description: `The main search: flights matching any combination of origin, destination, airspace crossed, aircraft, airline/company, callsign and period, with an overview (totals, flights per month, top routes, aircraft and companies) and the matching flights. origin/destination: airport ICAO code (e.g. "KDOV"), airport name, or ISO2 country (e.g. "US", "IL"); both_directions matches either way. through_zone: "sov:ISO3" or "fir:CODE". company: owner/operator name (via the aircraft registry) or a 3-letter airline code (e.g. "ELY"). Periods longer than a few months read many monthly files and can be slow: prefer a period.`,
+    description: `The main search: flights matching any combination of origin, destination, airspace crossed, aircraft, airline/company, callsign and period, with an overview (totals, flights per month, top routes, aircraft and companies) and the matching flights. origin/destination: airport ICAO code (e.g. "KDOV"), airport name, or ISO2 country (e.g. "US", "IL"); both_directions matches either way. through_zone: "sov:ISO3" or "fir:CODE". company: owner/operator name (via the aircraft registry) or a 3-letter airline code (e.g. "ELY"). Any period: origin/destination and airspace questions use the search indexes; an aircraft/company/callsign-only question over more than two months reads many monthly files and is slow, so give it a period.`,
     input_schema: { type: 'object', properties: {
       origin: { type: 'string' }, destination: { type: 'string' }, both_directions: { type: 'boolean' }, through_zone: { type: 'string' },
       aircraft: { type: 'string', description: 'registration (4X-ICA) or ICAO hex (738c06)' }, company: { type: 'string' }, callsign: { type: 'string' },
@@ -640,19 +707,9 @@ export const TOOLS: ToolDef[] = [
       const zone = a.through_zone ? String(a.through_zone) : '';
       const long = r.t1 - r.t0 > LONG;
       const zIdx = zone ? indexSrc(ctx, 'zone', zone, r.t0 - 86400, r.t1) : null;
-      // route index: by destination country if known (usually the smaller set), else by origin country
-      let rIdx: string | null = null;
-      if (!zone && long && !a.both_directions) {
-        const country = async (v: unknown) => {
-          const x = String(v ?? '').trim().toUpperCase();
-          if (x.length === 2) return x;
-          if (!x) return '';
-          const [ap] = await ctx.query(`SELECT country FROM airports WHERE ident = ${lit(x)} LIMIT 1`).catch(() => []);
-          return ap?.country ? String(ap.country) : '';
-        };
-        const tc = await country(a.destination), fc = await country(a.origin);
-        rIdx = tc ? indexSrc(ctx, 'to', tc, r.t0, r.t1) : fc ? indexSrc(ctx, 'from', fc, r.t0, r.t1) : null;
-      }
+      // route index: the smaller end's country files (both directions included); always for long periods, for short ones
+      // when they are smaller than the slice of monthly files (a small country's year is 1 MB; a week of all flights is 60 MB)
+      const rIdx = !zone && (a.origin || a.destination) ? await routeIdx(ctx, a, r, long ? undefined : await scanBytes(ctx, r.t0, r.t1)) : null;
       let from: string, sel: string;
       if (zIdx) {           // one table: crossing + flight columns, sorted by airspace
         from = `${zIdx} l`; sel = 'l.*';
@@ -664,7 +721,7 @@ export const TOOLS: ToolDef[] = [
         from = `${rIdx ?? T(ctx, 'legs', r.t0, r.t1)} l`; sel = 'l.*';
       }
       // the airspace index omits a few rarely used columns (names, operator, airfield flags)
-      if (zIdx) for (let i = 0; i < w.length; i++) w[i] = w[i].replace(' OR l.from_mil = 1 OR l.to_mil = 1', '').replace(/ OR l\.operator ILIKE '[^']*'/, '');
+      if (zIdx) for (let i = 0; i < w.length; i++) w[i] = w[i].replace(' OR l.from_mil = 1 OR l.to_mil = 1', '').replace(/ OR l\.operator ILIKE '[^']*'/, '').replace(/ OR l\.(from|to)_name ILIKE '[^']*'/g, '');
       const tmp = `ff_${Math.random().toString(36).slice(2, 10)}`;
       if (from.startsWith('(empty)'))   // the index says: no flights for this country / airspace in the period
         return { period: [r.from, r.to], days_in_data: r.covered.length, totals: { flights: 0, aircraft: 0, military_aircraft: 0 }, used_index: zIdx ? 'airspace' : 'routes',
@@ -709,19 +766,12 @@ export const TOOLS: ToolDef[] = [
       if (a.military_only) w.push('(mil = 1 OR from_mil = 1 OR to_mil = 1)');
       if (a.recorded_only) w.push(`from_cert = 'recorded' AND to_cert = 'recorded'`);
       let src = T(ctx, 'legs', r.t0, r.t1);
-      if (r.t1 - r.t0 > LONG) {   // long periods: the destination (else origin) country's index files, or fail fast
-        const country = async (v: unknown) => {
-          const x = String(v ?? '').trim().toUpperCase();
-          if (!x || x.length === 2) return x;
-          const [ap] = await ctx.query(`SELECT country FROM airports WHERE ident = ${lit(x)} LIMIT 1`).catch(() => []);
-          return ap?.country ? String(ap.country) : '';
-        };
-        const tc = await country(a.destination), fc = await country(a.origin);
-        const idx = tc ? indexSrc(ctx, 'to', tc, r.t0, r.t1) : fc ? indexSrc(ctx, 'from', fc, r.t0, r.t1) : null;
-        if (!idx) tooLong(r, 'a route search');
-        if (idx === '(empty)') return [];
-        src = idx;
-      }
+      const long = r.t1 - r.t0 > LONG;
+      // the smaller end's country index files: always for long periods (or fail fast), for short ones when cheaper
+      const idx = await routeIdx(ctx, a, r, long ? undefined : await scanBytes(ctx, r.t0, r.t1));
+      if (long && !idx) tooLong(r, 'a route search');
+      if (idx === '(empty)') return [];
+      if (idx) src = idx;
       const rows = await ctx.query(`SELECT ${LEG_COLS} FROM ${src} WHERE ${w.join(' AND ')} ORDER BY t0 LIMIT ${Math.min(num(a.limit, 500), 5000)}`);
       return rows.map(shapeLeg);
     },
