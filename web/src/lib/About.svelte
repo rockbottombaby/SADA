@@ -42,10 +42,12 @@
         <article>
           <section id="about-mission">
             <div class="kicker">Open-source investigative flight monitor</div>
-            <h1>Data-driven accountability for the weapons behind war crimes.</h1>
-            <p class="lead">States use large-scale data and AI-assisted analysis to wage war. SADA turns the same kind of capability
-              toward accountability: it gives journalists and researchers the means to trace the flights that carry weapons, and to hold
-              the governments that ship them, or let them pass, to account.</p>
+            <h1>AI-powered research on the flights that carry weapons.</h1>
+            <p class="lead">A free, open-source research tool for journalists and researchers. Ask a question; SADA searches every
+              flight since 2023, shows its work on a map and gives a source for every figure.</p>
+            <p>States use large-scale data and AI-assisted analysis to wage war. SADA turns the same kind of capability
+              toward accountability: tracing the flights that carry weapons, and holding the governments that ship them, or let
+              them pass, to account.</p>
             <p>This is the first version. It will grow, with more data sources and more tools, in the near future.</p>
             {#if app.ctx?.manifest}
               <div class="stats">
@@ -59,9 +61,9 @@
           <section id="about-what">
             <h2>What it does</h2>
             <ul class="plain">
-              <li><b>Find flights</b> between places, through any country's airspace, or by aircraft and operator, since March 2023.</li>
+              <li><b>Ask the AI</b> any question in plain language: it investigates, shows each step on the map and cites the evidence for every figure.</li>
+              <li><b>Find flights</b> yourself between places, through any country's airspace, or by aircraft and operator, since March 2023.</li>
               <li><b>Follow live traffic</b>, including military aircraft worldwide.</li>
-              <li><b>Ask the research assistant</b>: it investigates, shows each step on the map and cites the evidence for every figure.</li>
             </ul>
           </section>
 

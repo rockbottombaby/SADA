@@ -4,12 +4,12 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#0c0c0c">
-<title>SADA — open it on a computer</title>
-<meta name="description" content="SADA is a free, open-source tool for tracking the flights that carry weapons. It is built for a computer screen.">
+<title>SADA — AI-powered research on the flights that carry weapons</title>
+<meta name="description" content="SADA is a free, open-source AI research assistant for tracing the flights that carry weapons. Ask in plain language; it investigates 120 million flights and cites every figure.">
 <link rel="icon" href="/eye-32.png">
 <link rel="apple-touch-icon" href="/eye-192.png">
-<meta property="og:title" content="SADA — track the flights that carry weapons">
-<meta property="og:description" content="Free, open-source flight search, live map and AI research assistant for journalists and researchers.">
+<meta property="og:title" content="SADA — AI research on the flights that carry weapons">
+<meta property="og:description" content="Ask in plain language. SADA's AI investigates every flight since 2023, shows its work on a map and cites every figure. Free and open source.">
 <meta property="og:url" content="https://sadawatch.com/">
 <style>
   :root { --bg: #0c0c0c; --panel: #151515; --line: #262626; --line2: #343434; --ink: #ececec; --text: #c6c6c6; --muted: #8a8a8a; --faint: #5e5e5e;
@@ -26,6 +26,19 @@
   .eye { width: 76px; height: 76px; image-rendering: pixelated; border-radius: 50%; margin-bottom: 26px;
     filter: drop-shadow(0 0 22px rgba(80,140,255,.45)); animation: watch 3.2s ease-in-out infinite; }
   @keyframes watch { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.05); } }
+  .chat { border: 1px solid rgba(120,165,255,.28); border-radius: 14px; background: linear-gradient(180deg, rgba(90,140,255,.06), rgba(255,255,255,.01)); padding: 16px; }
+  .q { background: var(--ink); color: var(--bg); border-radius: 14px 14px 4px 14px; padding: 11px 14px; font-size: 15px; margin-left: 28px; }
+  .a { margin-top: 16px; }
+  .who { display: flex; align-items: center; gap: 8px; font-size: 11px; letter-spacing: 2.5px; font-weight: 700; color: var(--ink); margin-bottom: 10px; }
+  .who img { width: 20px; height: 20px; image-rendering: pixelated; border-radius: 50%; }
+  .run { list-style: none; padding: 0; margin: 0 0 14px; display: grid; gap: 8px; }
+  .run li { display: flex; gap: 10px; align-items: baseline; font-size: 14.5px; color: var(--text); }
+  .run i { width: 7px; height: 7px; border-radius: 50%; background: #6fa2ff; flex: none; transform: translateY(-1px); box-shadow: 0 0 8px rgba(111,162,255,.7); }
+  .ans { border-top: 1px solid var(--line); padding-top: 12px; }
+  .chip { display: inline-block; font-size: 12px; border: 1px solid var(--line2); border-radius: 999px; padding: 4px 10px; margin: 0 6px 6px 0; color: var(--ink); }
+  .ans p { font-size: 14px; color: var(--muted); margin: 6px 0 0; }
+  .small { font-size: 13.5px; color: var(--muted); margin-top: 14px; }
+  .feats li.hl { border-color: rgba(120,165,255,.4); background: rgba(90,140,255,.07); }
   .name { font-size: 13px; letter-spacing: 7px; font-weight: 700; color: var(--ink); margin-bottom: 12px; }
   h1 { font-size: 34px; line-height: 1.12; letter-spacing: -.5px; margin: 0 0 16px; color: var(--ink); font-weight: 650; }
   .lead { font-size: 17px; margin: 0 0 30px; color: var(--text); }
@@ -76,15 +89,16 @@
   <div class="hero">
     <img class="eye" src="/eye-192.png" alt="">
     <div class="name">SADA</div>
-    <h1>Track the flights that carry weapons.</h1>
-    <p class="lead">A free, open-source tool that helps journalists and researchers trace weapons flights and hold the governments behind them to account.</p>
+    <h1>AI-powered research on the flights that carry weapons.</h1>
+    <p class="lead">A free, open-source research tool for journalists and researchers. Ask a question; SADA searches every flight since
+      2023, shows its work on a map and gives a source for every figure.</p>
 
     <div class="desk">
       <div class="t">
         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><rect x="3" y="4" width="18" height="12" rx="1.5"/><path d="M8 20h8M12 16v4"/></svg>
         Open SADA on a computer
       </div>
-      <p>SADA is built for a large screen: a map, a search panel and a research assistant side by side. Phones aren't supported yet.</p>
+      <p>The assistant works next to a live map, so SADA needs a large screen. Phones aren't supported yet.</p>
       <div class="url">sadawatch.com</div>
       <div class="btns">
         <button class="primary" id="share">Send to myself</button>
@@ -92,8 +106,30 @@
       </div>
       <div class="done" id="done" role="status" aria-live="polite"></div>
     </div>
-    <div class="scroll">What is SADA ↓</div>
+    <div class="scroll">See how it works ↓</div>
   </div>
+
+  <section class="ai">
+    <h2>The AI research assistant</h2>
+    <div class="chat">
+      <div class="q">Which military cargo flights crossed this country's airspace to or from a war zone this year, and who operated them?</div>
+      <div class="a">
+        <div class="who"><img src="/eye-64.png" alt="">SADA</div>
+        <ol class="run">
+          <li><i></i>Checks where receivers could see and where they couldn't</li>
+          <li><i></i>Searches 120 million flights through that airspace</li>
+          <li><i></i>Opens every military and cargo flight it finds</li>
+          <li><i></i>Compares with arms-export figures and the press</li>
+          <li><i></i>Draws each step on the map as it goes</li>
+        </ol>
+        <div class="ans">
+          <span class="chip">Findings</span><span class="chip">Leads, strongest first</span><span class="chip">Records to request</span>
+          <p>Every number links to the data behind it, and a separate check flags anything it cannot confirm.</p>
+        </div>
+      </div>
+    </div>
+    <p class="small">It runs on your own Anthropic key: a few cents for a quick question, a dollar or two for a full investigation.</p>
+  </section>
 
   <section>
     <h2>Why it exists</h2>
@@ -105,10 +141,10 @@
   <section>
     <h2>What you can do</h2>
     <ul class="feats">
-      <li><b>Find flights</b><span>Between countries or airports, through any country's airspace, or by aircraft and airline. Every flight since March 2023.</span></li>
-      <li><b>See the details</b><span>A flight's route, which countries it flew over and when, and what the aircraft did before and after.</span></li>
+      <li class="hl"><b>Ask the AI</b><span>Any question in plain language. It runs the investigation for you and shows its sources.</span></li>
+      <li><b>Search it yourself</b><span>Between countries or airports, through any country's airspace, or by aircraft and airline.</span></li>
+      <li><b>Open any flight</b><span>Its route, which countries it flew over and when, and what the aircraft did before and after.</span></li>
       <li><b>Watch live traffic</b><span>Military aircraft worldwide, as they fly.</span></li>
-      <li><b>Ask the assistant</b><span>In plain language. It investigates, shows each step on the map and gives a source for every number.</span></li>
     </ul>
   </section>
 
@@ -117,7 +153,7 @@
     <ol class="steps">
       <li><span><b>Volunteers' receivers</b> around the world pick up the signals aircraft broadcast.</span></li>
       <li><span><b>Every day, SADA</b> turns that archive into flights, over 120 million so far, and works out which countries' airspace each one crossed.</span></li>
-      <li><span><b>You search it</b> in your browser. Nothing you look up is stored or tracked.</span></li>
+      <li><span><b>You ask, the AI investigates</b>, right in your browser. Nothing you look up is stored or tracked.</span></li>
     </ol>
     <div class="key">
       <div><i class="sw" style="background:var(--obs)"></i><span><b style="color:var(--ink)">Observed</b> — seen inside the airspace.</span></div>
