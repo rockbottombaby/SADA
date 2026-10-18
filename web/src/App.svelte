@@ -128,7 +128,7 @@
 <style>
   header { --fieldbg: var(--bg); height: 58px; display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; gap: 28px; padding: 0 18px; background: var(--bg); border-bottom: 1px solid var(--line); }
   .hleft { display: flex; align-items: center; gap: 28px; min-width: 0; }
-  .beta { font-size: 8.5px; letter-spacing: 1.5px; font-weight: 500; color: var(--muted); border: 1px solid var(--line2); border-radius: 3px; padding: 2px 5px 1px; margin-left: 2px; transform: translateY(-1px); }
+  .beta { font-size: 7.5px; letter-spacing: .6px; font-weight: 500; text-transform: lowercase; color: var(--muted); margin-left: -15px; align-self: flex-start; line-height: 1; padding-top: 1px; }   /* like a ™ mark, tight to the name */
   .brand { display: flex; align-items: center; gap: 12px; font-weight: 700; font-size: 13px; text-transform: uppercase; letter-spacing: 5px; white-space: nowrap; border: 0; padding: 0; background: none; color: var(--ink); cursor: pointer; }
   .brand:hover { background: none; }
   .logo { width: 32px; height: 32px; margin: -4px 0; image-rendering: pixelated; flex: none; }
