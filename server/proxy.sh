@@ -24,7 +24,8 @@ pre = f'(?:{key}/)?' if key else ''
 extra_host = ', ' + os.environ['PROXY_DOMAIN'] if os.environ.get('PROXY_DOMAIN') else ''
 print(f"""#cloud-config
 package_update: true
-packages: [caddy, nginx, ufw, unattended-upgrades]
+ssh_pwauth: false
+packages: [caddy, nginx, ufw, unattended-upgrades, fail2ban]
 write_files:
   - path: /etc/nginx/conf.d/sada-live.conf
     content: |
@@ -44,6 +45,7 @@ write_files:
           limit_req zone=live_ip burst=40 nodelay;
           set $adsblol https://api.adsb.lol;
           proxy_pass $adsblol;
+          proxy_http_version 1.1;   # ADSB.lol answers HTTP/1.0 (nginx's default upstream) with 426 Upgrade Required
           proxy_ssl_server_name on;
           proxy_set_header Host api.adsb.lol;
           proxy_set_header User-Agent "SADA airwatch (open-source investigative flight monitor)";
@@ -62,6 +64,7 @@ write_files:
           limit_req zone=live_ip burst=80 nodelay;
           set $adsblol_web https://adsb.lol;
           proxy_pass $adsblol_web;
+          proxy_http_version 1.1;
           proxy_ssl_server_name on;
           proxy_set_header Host adsb.lol;
           proxy_set_header User-Agent "SADA airwatch (open-source investigative flight monitor)";
@@ -80,6 +83,7 @@ write_files:
           limit_req zone=os_ip burst=10 nodelay;
           set $opensky https://opensky-network.org;
           proxy_pass $opensky;
+          proxy_http_version 1.1;
           proxy_ssl_server_name on;
           proxy_set_header Host opensky-network.org;
           proxy_pass_header Authorization;
@@ -89,6 +93,7 @@ write_files:
           limit_req zone=os_ip burst=5 nodelay;
           set $opensky_auth https://auth.opensky-network.org;
           proxy_pass $opensky_auth;
+          proxy_http_version 1.1;
           proxy_ssl_server_name on;
           proxy_set_header Host auth.opensky-network.org;
           proxy_hide_header Access-Control-Allow-Origin;
@@ -105,6 +110,12 @@ write_files:
   - path: /etc/caddy/Caddyfile.tmpl
     content: |
       HOST {{
+        log {{
+          output file /var/log/caddy/access.log {{
+            roll_size 50mb
+            roll_keep 5
+          }}
+        }}
         header {{
           defer
           Access-Control-Allow-Origin "*"
@@ -150,7 +161,8 @@ write_files:
         }}
       }}
 runcmd:
-  - ufw default deny incoming && ufw allow 22/tcp && ufw allow 80/tcp && ufw allow 443/tcp && ufw --force enable
+  - ufw default deny incoming && ufw limit 22/tcp && ufw allow 80/tcp && ufw allow 443/tcp && ufw --force enable
+  - printf '[sshd]\nenabled = true\nmaxretry = 4\nbantime = 1h\n' > /etc/fail2ban/jail.local && systemctl enable --now fail2ban
   - IP=$(curl -s http://169.254.169.254/hetzner/v1/metadata/public-ipv4); sed "s/^HOST/$(echo $IP | tr . -).sslip.io{extra_host}/" /etc/caddy/Caddyfile.tmpl > /etc/caddy/Caddyfile
   - rm -f /etc/nginx/sites-enabled/default   # nginx only listens on 127.0.0.1:8081; Caddy owns ports 80/443
   - mkdir -p /var/cache/nginx/live && chown www-data /var/cache/nginx/live && nginx -t && systemctl restart nginx

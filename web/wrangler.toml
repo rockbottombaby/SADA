@@ -2,7 +2,7 @@
 # Deploy: npm run build && npx wrangler deploy
 name = "sada"
 compatibility_date = "2026-09-01"
-workers_dev = true
+workers_dev = false   # custom domains only: the workers.dev name is tied to the account
 routes = [
   { pattern = "sadawatch.com", custom_domain = true },
   { pattern = "www.sadawatch.com", custom_domain = true },

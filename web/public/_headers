@@ -1,0 +1,10 @@
+# Security headers for the published app (Cloudflare Workers static assets reads this file from dist/).
+# The CSP lists every origin the app talks to; anything else (an injected script trying to send keys elsewhere) is refused.
+# Running your own copy against another data server or proxy: add its origin to connect-src.
+/*
+  Content-Security-Policy: default-src 'self'; script-src 'self' https://cdn.jsdelivr.net blob: 'wasm-unsafe-eval'; worker-src 'self' blob:; connect-src 'self' https://data.sadawatch.com https://live.sadawatch.com https://cdn.jsdelivr.net https://extensions.duckdb.org https://api.anthropic.com https://openrouter.ai https://api.census.gov https://api.usaspending.gov https://opensky-network.org https://auth.opensky-network.org https://demotiles.maplibre.org blob: data:; img-src 'self' data: blob: https:; style-src 'self' 'unsafe-inline'; font-src 'self' data:; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'
+  X-Frame-Options: DENY
+  X-Content-Type-Options: nosniff
+  Referrer-Policy: strict-origin-when-cross-origin
+  Permissions-Policy: camera=(), microphone=(), geolocation=(), payment=()
+  Strict-Transport-Security: max-age=31536000; includeSubDomains

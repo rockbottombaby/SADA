@@ -1,7 +1,7 @@
 name = "oam-data"
 main = "src/index.js"
 compatibility_date = "2026-09-01"
-workers_dev = true
+workers_dev = false   # custom domains only: the workers.dev name is tied to the account
 routes = [{ pattern = "data.sadawatch.com", custom_domain = true }]
 
 [[r2_buckets]]
