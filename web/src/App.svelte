@@ -58,10 +58,10 @@
       // start on the latest week: whole-archive queries are possible but slow in the browser
       // no preset period: the user chooses one in the search form
       app.ready = true;
-      setTimeout(() => warmCache(ctx), 1500);   // after the first paint: the latest months' footers into the cache app.status = '';
+      setTimeout(() => warmCache(ctx), 1500);   // after the first paint: the latest months' footers into the cache
+      app.status = '';
       const h = new URLSearchParams(location.hash.slice(1));
       if (h.get('leg')) selectLeg(h.get('leg')!);
-      if (!settings.apiKey) app.status = '';
     } catch (e) { app.error = String(e); }
   });
 </script>
