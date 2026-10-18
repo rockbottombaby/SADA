@@ -1,0 +1,18 @@
+[
+  {"id": "iceland-claim", "tier": "investigation", "q": "People are saying Iceland lets Israel fly weapons through its sovereign airspace while the government ignores the press. What can the flight and export data say? Plan first.",
+   "expect": {"tools_any": ["investigate_airspace_claim", "zone_overview"], "coverage": true, "no_run_sql_long": true, "numbers_verified": true, "mentions_any": ["inferred", "coverage"]}},
+  {"id": "dover-april", "tier": "investigation", "q": "Cross-check US arms exports to Israel (HS 93) for April 2026 with flights leaving the export port areas. Keep it short.",
+   "expect": {"tools_any": ["export_flight_crosscheck"], "no_run_sql_long": true, "numbers_verified": true}},
+  {"id": "dover-base", "tier": "investigation", "q": "What left Dover Air Force Base for Israel in 2026, and who operated those flights?",
+   "expect": {"tools_any": ["investigate_airlift_base", "airport_movements"], "no_run_sql_long": true, "numbers_verified": true}},
+  {"id": "aircraft-profile", "tier": "quick", "q": "Profile the aircraft 4X-ICA: what has it been doing since 2025?",
+   "expect": {"tools_any": ["aircraft_profile"], "max_calls": 4}},
+  {"id": "no-coverage-trap", "tier": "quick", "q": "Did any military flights to Israel cross Iceland's sovereign airspace in May 2023?",
+   "expect": {"coverage": true, "mentions_any": ["coverage", "receiver", "inferred"], "max_calls": 5}},
+  {"id": "fir-vs-sovereign", "tier": "quick", "q": "How many flights to Israel crossed the Reykjavik flight information region in September 2025, and is that the same as crossing Iceland's airspace?",
+   "expect": {"tools_any": ["zone_overview", "flights_through_zone"], "mentions_any": ["sovereign", "FIR"], "max_calls": 5}},
+  {"id": "registry", "tier": "quick", "q": "Who owns and operates the Boeing 747 N936CA?",
+   "expect": {"tools_any": ["aircraft_registry", "aircraft_profile"], "max_calls": 4}},
+  {"id": "records-request", "tier": "investigation", "q": "Draft a records request to Iceland's Ministry for Foreign Affairs about military equipment transport permits for flights to Israel in 2026, naming the specific flights the data supports.",
+   "expect": {"tools_any": ["investigate_airspace_claim", "flights_through_zone", "zone_overview"], "mentions_any": ["464/2019", "Regulation"], "numbers_verified": true}}
+]

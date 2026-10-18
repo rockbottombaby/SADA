@@ -1,0 +1,25 @@
+// usage: node scenetest.mjs outdir   — splash, Explore → scene, track added to scene, new search replaces it, back/forward, clear
+import puppeteer from 'puppeteer-core';
+const [out] = process.argv.slice(2);
+const b = await puppeteer.launch({ executablePath: '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome', headless: 'new', args: ['--use-angle=swiftshader', '--enable-unsafe-swiftshader'] });
+const p = await b.newPage();
+await p.setViewport({ width: 1600, height: 1000 });
+p.on('pageerror', e => console.log('[pageerror]', String(e).slice(0, 300)));
+p.goto('http://localhost:5181/');
+await p.waitForSelector('.splash', { timeout: 20000 }); await p.screenshot({ path: `${out}/s0_splash.png` });
+await p.waitForSelector('.home', { timeout: 60000 });
+const scene = () => p.evaluate(() => ({ title: document.querySelector('.scene b')?.textContent, items: document.querySelector('.scene .items')?.innerText.replace(/\s+/g, ' ') }));
+const click = (sel, text) => p.evaluate((s, t) => [...document.querySelectorAll(s)].find(e => e.innerText.trim().toLowerCase() === t.toLowerCase()).click(), sel, text);
+await click('.ex button', 'Iceland');
+await p.waitForFunction(() => /\d flights/i.test(document.querySelector('.lhead')?.innerText || '') && !/Loading/i.test(document.querySelector('.lhead').innerText), { timeout: 90000 });
+await new Promise(r => setTimeout(r, 1500)); console.log('1 Iceland:', await scene()); await p.screenshot({ path: `${out}/s1_iceland.png` });
+await p.click('.list .row'); await p.waitForSelector('.sheet', { timeout: 30000 }); await p.keyboard.press('Escape');
+await new Promise(r => setTimeout(r, 1500)); console.log('2 +track:', await scene()); await p.screenshot({ path: `${out}/s2_track.png` });
+await p.click('.back'); await p.waitForSelector('.home');
+await p.type('.task form input', 'LOY026'); await p.keyboard.press('Enter');
+await p.waitForFunction(() => /\d flights/i.test(document.querySelector('.lhead')?.innerText || '') && !/Loading/i.test(document.querySelector('.lhead').innerText), { timeout: 90000 });
+await new Promise(r => setTimeout(r, 1200)); console.log('3 search replaces:', await scene());
+await p.click('.scene .nav[title="Previous map"]'); await new Promise(r => setTimeout(r, 800)); console.log('4 back:', await scene());
+await p.click('.scene .nav[title="Next map"]'); await new Promise(r => setTimeout(r, 800)); console.log('5 forward:', await scene());
+await p.click('.scene .nav.x'); await new Promise(r => setTimeout(r, 800)); console.log('6 cleared:', await scene());
+await b.close();

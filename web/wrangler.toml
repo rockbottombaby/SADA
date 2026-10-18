@@ -1,0 +1,13 @@
+# The public app as static files on Cloudflare (Workers static assets, free tier): https://sada.<account>.workers.dev
+# Deploy: npm run build && npx wrangler deploy
+name = "sada"
+compatibility_date = "2026-09-01"
+workers_dev = true
+routes = [
+  { pattern = "sadawatch.com", custom_domain = true },
+  { pattern = "www.sadawatch.com", custom_domain = true },
+]
+
+[assets]
+directory = "./dist"
+not_found_handling = "single-page-application"

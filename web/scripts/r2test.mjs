@@ -1,0 +1,21 @@
+// usage: DATA=https://.../KEY node r2test.mjs out.png   (loads the app against a remote data URL and times an Iceland airspace query)
+import puppeteer from 'puppeteer-core';
+const [out] = process.argv.slice(2);
+const b = await puppeteer.launch({ executablePath: '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome', headless: 'new', args: ['--use-angle=swiftshader', '--enable-unsafe-swiftshader'] });
+const p = await b.newPage();
+await p.setViewport({ width: 1600, height: 1000 });
+p.on('pageerror', e => console.log('[pageerror]', String(e).slice(0, 300)));
+p.on('console', m => { if (m.type() === 'error') console.log('[console]', m.text().slice(0, 300)); });
+await p.goto('http://localhost:5181/', { waitUntil: 'domcontentloaded' });
+await p.evaluate(u => localStorage.setItem('oam.dataUrl', u), process.env.DATA);
+let t = Date.now();
+await p.reload({ waitUntil: 'domcontentloaded' });
+await p.waitForSelector('.home', { timeout: 90000 });
+console.log('app ready in', (Date.now() - t) / 1000, 's; header:', await p.$eval('header', h => h.innerText.replace(/\s+/g, ' ')));
+t = Date.now();
+await p.evaluate(() => [...document.querySelectorAll('.ex button')].find(b => b.innerText.trim().toLowerCase() === 'iceland').click());
+await p.waitForFunction(() => /\d[\d,]* flights/i.test(document.querySelector('.lhead')?.innerText || '') && !/Loading/.test(document.querySelector('.lhead')?.innerText || ''), { timeout: 120000 }).catch(() => console.log('[timeout]'));
+console.log('Iceland query in', (Date.now() - t) / 1000, 's:', await p.$eval('.lhead', e => e.innerText.replace(/\s+/g, ' ')).catch(() => '?'));
+await p.screenshot({ path: out });
+await p.evaluate(() => localStorage.removeItem('oam.dataUrl'));
+await b.close();

@@ -1,0 +1,9 @@
+#cloud-config
+package_update: true
+packages: [curl, tmux, htop, aria2]
+runcmd:
+  # IPv4 only: the IPv6 path from Hetzner to Cloudflare R2 silently stalls large transfers (uploads and range reads hung)
+  - sysctl -w net.ipv6.conf.all.disable_ipv6=1 net.ipv6.conf.default.disable_ipv6=1
+  - curl -LsSf https://astral.sh/uv/install.sh | env UV_INSTALL_DIR=/usr/local/bin sh
+  - mkdir -p /opt/oam && cd /opt/oam && uv venv --python 3.14 .venv && uv pip install --python .venv/bin/python boto3==1.43.114 h3==4.5.0 numpy==2.5.4 orjson==3.13.0 pyarrow==26.0.0 shapely==2.2.0 duckdb==1.5.6
+  - touch /opt/oam/READY

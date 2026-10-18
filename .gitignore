@@ -1,0 +1,22 @@
+# secrets and local settings
+.env
+.env.*
+!web/.env
+server/env
+# data, caches and build output (the data lives in object storage, never in the repository)
+data/
+data_old/
+cache/
+logs/
+work/
+backfill.log
+web/dist/
+worker/.wrangler/
+mcp/eval_results/
+eval/results/
+# tooling
+node_modules/
+__pycache__/
+.venv/
+.DS_Store
+.vscode/

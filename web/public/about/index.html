@@ -1,0 +1,100 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>SADA — track the flights that carry weapons</title>
+<meta name="description" content="Free, open-source flight search, live map and AI research assistant for journalists and researchers. Every flight since March 2023. In memory of Sha'ban al-Dalou.">
+<link rel="icon" href="/eye-32.png">
+<meta property="og:title" content="SADA — track the flights that carry weapons">
+<meta property="og:description" content="Free, open-source flight search, live map and AI research assistant for journalists and researchers.">
+<meta property="og:url" content="https://sadawatch.com/about/">
+<meta property="og:type" content="website">
+<style>
+  :root { --bg: #0c0c0c; --panel: #141414; --line: #262626; --line2: #333; --ink: #e8e8e8; --text: #c9c9c9; --muted: #8a8a8a; --faint: #5e5e5e;
+    --obs: #f2c14e; --inf: #8fb8ff; --r: 6px; }
+  * { box-sizing: border-box; }
+  html { background: var(--bg); }
+  body { margin: 0; background: var(--bg); color: var(--text); font: 16px/1.6 -apple-system, "Inter", "Segoe UI", Helvetica, Arial, sans-serif; -webkit-font-smoothing: antialiased; }
+  a { color: var(--ink); text-decoration: underline; text-decoration-color: var(--line2); text-underline-offset: 3px; }
+  a:hover { text-decoration-color: var(--ink); }
+  .wrap { max-width: 760px; margin: 0 auto; padding: 0 16px; }
+  header { display: flex; align-items: center; justify-content: space-between; padding: 18px 0; border-bottom: 1px solid var(--line); }
+  .brand { display: flex; align-items: center; gap: 12px; color: var(--ink); text-decoration: none; letter-spacing: 6px; font-size: 14px; font-weight: 600; }
+  .brand img { image-rendering: pixelated; }
+  .btn { display: inline-block; padding: 12px 22px; border: 1px solid var(--line2); border-radius: var(--r); color: var(--ink); text-decoration: none; font-size: 11px; letter-spacing: 2.5px; text-transform: uppercase; }
+  .btn.primary { background: var(--ink); color: var(--bg); border-color: var(--ink); }
+  .btn:hover { border-color: var(--ink); }
+  h1 { font-size: clamp(30px, 5.5vw, 46px); line-height: 1.1; margin: 56px 0 18px; color: var(--ink); font-weight: 600; letter-spacing: -.4px; }
+  .lead { font-size: 18px; margin: 0 0 28px; }
+  .cta { display: flex; gap: 12px; flex-wrap: wrap; margin-bottom: 48px; }
+  section { padding: 32px 0; border-top: 1px solid var(--line); }
+  h2 { font-size: 13px; letter-spacing: 2.5px; text-transform: uppercase; color: var(--muted); font-weight: 500; margin: 0 0 14px; }
+  ul { list-style: none; padding: 0; margin: 0; }
+  li { padding: 9px 0; border-top: 1px solid var(--line); }
+  li:first-child { border-top: 0; }
+  b { color: var(--ink); font-weight: 600; }
+  .sw { display: inline-block; width: 14px; height: 3px; vertical-align: middle; margin-right: 8px; border-radius: 2px; }
+  .mem { display: grid; grid-template-columns: 120px 1fr; gap: 24px; align-items: center; }
+  .mem img { width: 120px; height: 120px; border-radius: var(--r); border: 1px solid var(--line2); object-fit: cover; display: block; }
+  .mem p { margin: 6px 0; }
+  footer { padding: 32px 0 56px; color: var(--muted); font-size: 13px; border-top: 1px solid var(--line); }
+  @media (max-width: 560px) { .mem { grid-template-columns: 1fr; } }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <a class="brand" href="/"><img src="/eye-64.png" alt="" width="28" height="28">SADA</a>
+    <a href="https://github.com/rockbottombaby/SADA">Source code</a>
+  </header>
+
+  <h1>Track the flights that carry weapons.</h1>
+  <p class="lead">States use large-scale data and AI-assisted analysis to wage war. SADA turns the same kind of capability toward
+    accountability: a free, open-source tool that helps journalists and researchers trace the flights that carry weapons, and hold
+    the governments that ship them, or let them pass, to account.</p>
+  <div class="cta">
+    <a class="btn primary" href="/">Open SADA</a>
+    <a class="btn" href="https://github.com/rockbottombaby/SADA">Source code</a>
+  </div>
+
+  <section>
+    <h2>What you can do</h2>
+    <ul>
+      <li><b>Find flights</b> between two countries or airports, through a country's airspace, or by aircraft, airline or callsign. Every flight since March 2023.</li>
+      <li><b>Open any flight</b> to see its route, which countries it flew over and when, and the aircraft's other flights.</li>
+      <li><b>Watch live traffic</b>, including military aircraft worldwide.</li>
+      <li><b>Ask the assistant</b> in plain language. It investigates, shows each step on the map and gives a source for every number. It runs on your own Anthropic key.</li>
+    </ul>
+  </section>
+
+  <section>
+    <h2>How to read the results</h2>
+    <ul>
+      <li><i class="sw" style="background:var(--obs)"></i><b>Observed</b> — a receiver saw the aircraft inside that airspace.</li>
+      <li><i class="sw" style="background:var(--inf)"></i><b>Inferred</b> — its path across a gap in coverage crosses the airspace. An estimate, not a sighting.</li>
+      <li><b>No data does not mean no flights.</b> Where there are no receivers, nothing is recorded. Flight data never shows cargo.</li>
+    </ul>
+  </section>
+
+  <section>
+    <h2>Free and private</h2>
+    <p>Searching, the map and live traffic are free. The assistant is billed to your own Anthropic account: cents for a simple
+      question, a dollar or two for a long investigation. There are no accounts and nothing about you is stored.</p>
+  </section>
+
+  <section>
+    <h2>In memory</h2>
+    <div class="mem">
+      <img src="/shaban.webp" alt="Sha'ban Ahmad al-Dalou">
+      <div>
+        <p><b>Sha'ban Ahmad al-Dalou (2004–2024)</b>, a young Palestinian software engineering student, burned alive when Israel bombed an emergency tent camp for families displaced by the genocide, in Deir al-Balah, Gaza, on October 14, 2024.</p>
+        <p>SADA takes its name from his initials, S.A.D., with A for Airwatch; <em>sada</em> (<span lang="ar">صدى</span>) also means “echo” in Arabic.</p>
+      </div>
+    </div>
+  </section>
+
+  <footer>Flight data © ADSB.lol contributors, ODbL · Code AGPL-3.0 · <a href="https://github.com/rockbottombaby/SADA">Source code</a></footer>
+</div>
+</body>
+</html>

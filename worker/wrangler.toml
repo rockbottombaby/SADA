@@ -1,0 +1,17 @@
+name = "oam-data"
+main = "src/index.js"
+compatibility_date = "2026-09-01"
+workers_dev = true
+routes = [{ pattern = "data.sadawatch.com", custom_domain = true }]
+
+[[r2_buckets]]
+binding = "BUCKET"
+bucket_name = "oam-data"
+
+# Per-address request budget: 1,200 requests a minute is well above one browser's needs (a long research run makes a few
+# hundred range reads a minute) and bounds what any one address can cost. Period must be 10 or 60.
+[[unsafe.bindings]]
+name = "RL"
+type = "ratelimit"
+namespace_id = "1001"
+simple = { limit = 1200, period = 60 }
