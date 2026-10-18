@@ -16,7 +16,8 @@ means "echo" in Arabic.
 ## What you can do
 
 - **Ask the AI** a question in plain language. It searches the data, shows each step on the map, checks the press,
-  and gives a source for every number. It runs on your own Anthropic API key.
+  and gives a source for every number. Sign in with OpenRouter and pick a frontier model (Claude, GPT, Gemini and more),
+  or use your own Anthropic API key.
 - **Find flights** yourself between two countries or airports, through a country's airspace, or by aircraft, airline or callsign.
 - **Open any flight** to see its route, which countries it flew over and when, and the aircraft's other flights.
 - **Watch live traffic**, including military aircraft worldwide.
@@ -34,8 +35,8 @@ means "echo" in Arabic.
 ## What it costs
 
 - **Free:** searching, the map and live traffic.
-- **The assistant** is billed to your own Anthropic account. A simple question costs a few cents; a long investigation
-  costs a dollar or two.
+- **The assistant** runs on your own OpenRouter credit (or Anthropic key). You pay only for what you use, and every answer
+  shows what it cost.
 - **Privacy:** there are no accounts, and SADA stores nothing about you. Your keys stay in your browser.
 
 ## How it works

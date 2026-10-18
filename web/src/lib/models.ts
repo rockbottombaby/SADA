@@ -3,6 +3,7 @@
 
 export interface Profile {
   id: 'fast' | 'balanced' | 'deep';
+  provider?: 'anthropic' | 'openrouter';     // where the model runs (default Anthropic, with the user's Anthropic key)
   label: string;
   model: string;
   effort: 'low' | 'medium' | 'high';
@@ -29,6 +30,12 @@ export const PROFILES: Profile[] = [
     note: 'Most capable; use for hard synthesis and research briefs.' },
 ];
 export const profileById = (id: string) => PROFILES.find(p => p.id === id) ?? PROFILES[0];
+// an OpenRouter model borrows the settings (effort, rows shown, web budget) of the tier it belongs to; cost comes from OpenRouter
+export function profileForOpenRouter(m: { id: string; label: string; tier: 'fast' | 'balanced' | 'deep'; tested: boolean }): Profile {
+  const base = profileById(m.tier);
+  return { ...base, provider: 'openrouter', label: m.label, model: m.id, fallbacks: false,
+    note: m.tested ? 'Scored on SADA\'s evaluation questions.' : 'Not yet scored on SADA\'s evaluation questions; the checker still verifies every figure.' };
+}
 export const WEB_SEARCH_USD = 0.01;   // $10 per 1,000 searches, plus result tokens
 
 export interface Usage { input: number; output: number; cacheWrite: number; cacheRead: number; searches: number; calls: number; usd: number }

@@ -363,13 +363,13 @@ export const TOOLS: ToolDef[] = [
       origin_country: { type: 'string', description: 'ISO2, e.g. "US"' }, destination_country: { type: 'string', description: 'ISO2, e.g. "IL"' },
       either_end_country: { type: 'string', description: 'ISO2: flights starting OR ending there' },
       callsign_prefixes: { type: 'string', description: 'comma-separated, e.g. "ELY,CHG,ICL,RCH"' },
-      observed_only: { type: 'boolean' }, military_only: { type: 'boolean' } }, required: ['zone_id'] },
+      observed_only: { type: 'boolean' }, inferred_only: { type: 'boolean' }, military_only: { type: 'boolean' } }, required: ['zone_id'] },
     async run(ctx, a) {
       const r = range(ctx, a);
       const iso = (v: unknown) => lit(String(v).trim().toUpperCase());
       const pref = String(a.callsign_prefixes ?? '').split(/[\s,]+/).map(x => x.trim().toUpperCase()).filter(x => /^[A-Z0-9]{2,4}$/.test(x));
       const where = `z.zone_id = ${lit(a.zone_id)} AND z.t_in >= ${r.t0} AND z.t_in < ${r.t1}` +
-        (a.observed_only ? ` AND z.evidence = 'observed'` : '') + (a.military_only ? ' AND l.mil = 1' : '') +
+        (a.observed_only ? ` AND z.evidence = 'observed'` : '') + (a.inferred_only ? ` AND z.evidence = 'inferred'` : '') + (a.military_only ? ' AND l.mil = 1' : '') +
         (a.origin_country ? ` AND l.from_country = ${iso(a.origin_country)}` : '') + (a.destination_country ? ` AND l.to_country = ${iso(a.destination_country)}` : '') +
         (a.either_end_country ? ` AND (l.from_country = ${iso(a.either_end_country)} OR l.to_country = ${iso(a.either_end_country)})` : '') +
         (pref.length ? ` AND (${pref.map(p => `l.callsigns ILIKE ${lit(p + '%')} OR l.callsigns ILIKE ${lit('% ' + p + '%')}`).join(' OR ')})` : '');
@@ -417,6 +417,7 @@ export const TOOLS: ToolDef[] = [
     description: 'List flight legs that crossed a zone, with entry/exit times and evidence (observed by receivers vs inferred across a coverage gap). Filter by origin/destination country (ISO2, e.g. "IL", "US"), military, callsign prefix or registration prefix.',
     input_schema: { type: 'object', properties: {
       zone_id: { type: 'string' }, date_from: { type: 'string' }, date_to: { type: 'string' }, observed_only: { type: 'boolean' },
+      inferred_only: { type: 'boolean', description: 'only crossings estimated across a receiver gap (no position received inside the zone)' },
       military_only: { type: 'boolean' }, to_country: { type: 'string' }, from_country: { type: 'string' },
       either_end_country: { type: 'string', description: 'ISO2 country at either end of the leg' },
       callsign_prefix: { type: 'string' }, reg_prefix: { type: 'string' }, limit: { type: 'integer' } }, required: ['zone_id'] },
@@ -424,6 +425,7 @@ export const TOOLS: ToolDef[] = [
       const r = range(ctx, a);
       const w = [`z.zone_id = ${lit(a.zone_id)}`, `z.t_in >= ${r.t0}`, `z.t_in < ${r.t1}`];
       if (a.observed_only) w.push(`z.evidence = 'observed'`);
+      if (a.inferred_only) w.push(`z.evidence = 'inferred'`);
       if (a.military_only) w.push('l.mil = 1');
       if (a.to_country) w.push(`l.to_country = ${lit(String(a.to_country).toUpperCase())}`);
       if (a.from_country) w.push(`l.from_country = ${lit(String(a.from_country).toUpperCase())}`);
@@ -726,7 +728,7 @@ export const TOOLS: ToolDef[] = [
   },
   {
     name: 'run_sql',
-    description: 'Read-only SQL (DuckDB dialect), as a standalone tool (it is not available inside any code/Python sandbox). Views: legs (dep_utc, arr_utc TIMESTAMP UTC; t0/t1 epoch s), leg_zones (in_utc, out_utc), aircraft, airports, coverage (zone_id, date, aircraft, hours; receiver coverage per zone and day), registry (hex, reg, owner, operator, operator_icao; OpenSky aircraft database). legs columns: leg_id, hex, reg, type, operator, mil, callsigns (space-separated), date, t0, t1, from_code, from_name, from_country, from_cert, from_mil, to_code, to_name, to_country, to_cert, to_mil, days. leg_zones columns: zone_id, leg_id, hex, t_in, t_out, n_obs, n_inf, evidence. Prefer the dedicated tools; use this only for what they cannot express. The views read every month in the browser: keep queries to ~2 months (a t0/date condition) or they are stopped after 40 s; airspace or route questions over long periods belong to flights_through_zone, zone_overview and route_search (index-backed, seconds for any period). Avoid reserved words as aliases (e.g. first, last). Results are capped at 500 rows.',
+    description: 'LAST RESORT. Use flights_through_zone / zone_overview (observed_only, inferred_only, military_only), route_search, airport_movements or aircraft_profile first: they are indexed and fast; this scans whole month files and is stopped after 40 s. Read-only SQL (DuckDB dialect), as a standalone tool (it is not available inside any code/Python sandbox). Views: legs (dep_utc, arr_utc TIMESTAMP UTC; t0/t1 epoch s), leg_zones (in_utc, out_utc), aircraft, airports, coverage (zone_id, date, aircraft, hours; receiver coverage per zone and day), registry (hex, reg, owner, operator, operator_icao; OpenSky aircraft database). legs columns: leg_id, hex, reg, type, operator, mil, callsigns (space-separated), date, t0, t1, from_code, from_name, from_country, from_cert, from_mil, to_code, to_name, to_country, to_cert, to_mil, days. leg_zones columns: zone_id, leg_id, hex, t_in, t_out, n_obs, n_inf, evidence. Prefer the dedicated tools; use this only for what they cannot express. The views read every month in the browser: keep queries to ~2 months (a t0/date condition) or they are stopped after 40 s; airspace or route questions over long periods belong to flights_through_zone, zone_overview and route_search (index-backed, seconds for any period). Avoid reserved words as aliases (e.g. first, last). Results are capped at 500 rows.',
     input_schema: { type: 'object', properties: { sql: { type: 'string' } }, required: ['sql'] },
     async run(ctx, a) {
       await ensureAllViews(ctx);   // all-month views are created on first use (slow to bind)

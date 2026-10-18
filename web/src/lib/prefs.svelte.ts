@@ -1,10 +1,16 @@
 // Per-browser settings. Keys are stored only in this browser's localStorage and sent only to their own service
-// (Anthropic key -> api.anthropic.com, Census key -> api.census.gov, OpenSky client -> opensky-network.org or the proxy set here).
+// (Anthropic key -> api.anthropic.com, OpenRouter key -> openrouter.ai, Census key -> api.census.gov, OpenSky client -> opensky-network.org or the proxy set here).
+import { profileById, profileForOpenRouter, type Profile } from './models';
+import { orModel } from './openrouter';
 
 const read = (k: string, d = '') => { try { return localStorage.getItem(k) ?? d; } catch { return d; } };
 
 export const settings = $state({
   apiKey: read('oam.apiKey'),
+  // which key runs the assistant: OpenRouter for new browsers; an existing Anthropic key keeps working as before
+  provider: read('oam.provider', read('oam.apiKey') ? 'anthropic' : 'openrouter') as 'anthropic' | 'openrouter',
+  openrouterKey: read('oam.openrouterKey'),
+  openrouterModel: read('oam.openrouterModel', 'anthropic/claude-haiku-5.5'),
   profile: read('oam.profile', 'fast'),            // chat: fast (Haiku) by default
   researchProfile: read('oam.researchProfile', 'balanced'),
   dataUrl: read('oam.dataUrl', import.meta.env.VITE_DATA_URL || 'http://127.0.0.1:8790'),
@@ -19,9 +25,19 @@ export const settings = $state({
 export function saveSettings() {
   try {
     localStorage.setItem('oam.apiKey', settings.apiKey);
+    localStorage.setItem('oam.provider', settings.provider);
+    localStorage.setItem('oam.openrouterKey', settings.openrouterKey);
+    localStorage.setItem('oam.openrouterModel', settings.openrouterModel);
     localStorage.setItem('oam.profile', settings.profile);
     localStorage.setItem('oam.researchProfile', settings.researchProfile);
     localStorage.setItem('oam.dataUrl', settings.dataUrl);
     for (const k of ['censusKey', 'openskyId', 'openskySecret', 'openskyBase', 'proxyBase'] as const) localStorage.setItem('oam.' + k, settings[k]);
   } catch { /* storage unavailable: settings last for this session only */ }
 }
+
+// the assistant runs on whichever provider is chosen; both keys can be kept, only one is used at a time
+export const usingOpenRouter = () => settings.provider === 'openrouter';
+export const activeKey = () => (usingOpenRouter() ? settings.openrouterKey : settings.apiKey);
+export const hasKey = () => !!activeKey();
+export const activeProfile = (which: 'profile' | 'researchProfile' = 'profile'): Profile =>
+  usingOpenRouter() ? profileForOpenRouter(orModel(settings.openrouterModel)) : profileById(settings[which]);

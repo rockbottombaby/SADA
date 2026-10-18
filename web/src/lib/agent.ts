@@ -8,6 +8,7 @@ import { PLAYBOOKS } from './playbooks';
 import { type Profile, type Usage, addUsage, emptyUsage } from './models';
 import { compactForModel } from './compact';
 import { verifyAnswer, correctionPrompt, collectEvidence, type VerifyReport } from './verify';
+import { openrouterTurn, openrouterWebSearch, addOpenRouterUsage, OR_WEB_SEARCH_TOOL } from './openrouter';
 
 export interface AgentEvent {
   type: 'text' | 'tool_call' | 'tool_result' | 'server_tool' | 'notice' | 'usage' | 'verify' | 'progress' | 'phase';
@@ -136,6 +137,8 @@ RECORDS THAT CAN CONFIRM A SHIPMENT (for next steps and freedom-of-information r
 When a lead is strong enough, draft the request: agency, legal basis to cite if known, exact identifiers, period, records sought.
 
 WORKING WITH THE APP
+- Only call a tool when the question needs data. A greeting, a question about what you can do, or a clarification is answered
+  in a sentence or two without any tool call. "SADA" is this tool's name, never a place or an aircraft.
 - To put many flights on the map ("show all of them"), call map_show_flights with search: {the same filters} — the app
   fetches and draws up to 5,000 itself. Never page through leg IDs or run SQL to collect them.
 - Data tool results are shown to the user as cards automatically; do not repeat long lists. Summarise, then name the few most
@@ -202,15 +205,21 @@ export async function runAgent(opts: {
   client?: Anthropic; extraTools?: ToolDef[];   // e.g. map-control tools in the browser
 }): Promise<{ messages: Anthropic.Beta.BetaMessageParam[]; text: string; citations: Citation[]; usage: Usage; report?: VerifyReport }> {
   const p = opts.profile;
-  const client = opts.client ?? new Anthropic({ apiKey: opts.apiKey, dangerouslyAllowBrowser: true });
+  const or = p.provider === 'openrouter';   // OpenRouter runs the model; the loop, tools and checks are the same
+  const client = or ? null : (opts.client ?? new Anthropic({ apiKey: opts.apiKey, dangerouslyAllowBrowser: true }));
   const allTools = [...PLAYBOOKS, ...TOOLS, ...SOURCE_TOOLS, ...(opts.extraTools ?? [])];
   const toolByName = (n: string) => allTools.find(t => t.name === n);
   const tools: Anthropic.Beta.BetaToolUnion[] = allTools.map(t => ({ name: t.name, description: t.description, input_schema: t.input_schema, eager_input_streaming: true }) as Anthropic.Beta.BetaToolUnion);
   // searches per model request: Deep researches the press and official record properly, Fast only looks things up
-  if (opts.web) tools.push({ type: p.web.search, name: 'web_search', max_uses: p.webUses ?? 4 } as Anthropic.Beta.BetaToolUnion,
+  if (opts.web && !or) tools.push({ type: p.web.search, name: 'web_search', max_uses: p.webUses ?? 4 } as Anthropic.Beta.BetaToolUnion,
     { type: p.web.fetch, name: 'web_fetch', max_uses: p.webUses ?? 4 } as Anthropic.Beta.BetaToolUnion);
+  // on OpenRouter, web search is an ordinary tool the model calls and the loop runs (a few searches per answer)
+  const orTools = [...allTools.map(t => ({ name: t.name, description: t.description, input_schema: t.input_schema })), ...(opts.web ? [OR_WEB_SEARCH_TOOL] : [])];
+  let orSearches = 0;
   // explicit cache breakpoint on the stable system prompt (tools render before it, so both are cached)
-  const system = [{ type: 'text' as const, text: opts.system, cache_control: { type: 'ephemeral' as const } }];
+  // the prompt names web_fetch, which only the Anthropic path has
+  const systemText = or && opts.web ? opts.system + '\n\nWEB: only web_search is available here (no web_fetch); cite the URLs it returns.' : opts.system;
+  const system = [{ type: 'text' as const, text: systemText, cache_control: { type: 'ephemeral' as const } }];
   const onAbortDb = () => { cancelDb?.(); };
   opts.signal?.addEventListener('abort', onAbortDb, { once: true });
   const messages = [...opts.messages];
@@ -243,22 +252,30 @@ async function withBudget<T>(p: Promise<T>, ms: number, name: string): Promise<T
     opts.signal?.addEventListener('abort', onStop, { once: true });
     let lastActivity = Date.now(), stalled = false;
     const watchdog = setInterval(() => { if (Date.now() - lastActivity > STALL_MS) { stalled = true; turnAbort.abort(); } }, 10_000);
-    const stream = client.beta.messages.stream(params, { signal: turnAbort.signal });
-    stream.on('streamEvent', () => { lastActivity = Date.now(); });
-    stream.on('text', (d: string) => opts.onEvent({ type: 'text', text: d }));
     // what the model is doing right now, so a long think never looks like a stall (usage only arrives at the end)
     opts.onEvent({ type: 'phase', text: 'Thinking' });
-    stream.on('streamEvent', (ev: any) => {
-      if (ev.type !== 'content_block_start') return;
-      const b = ev.content_block;
-      const phase = b.type === 'thinking' || b.type === 'redacted_thinking' ? 'Thinking' : b.type === 'text' ? 'Writing'
-        : b.type === 'server_tool_use' ? (b.name === 'web_fetch' ? 'Reading a web page' : 'Searching the web')
-        : b.type === 'tool_use' ? `Preparing ${String(b.name).replace(/_/g, ' ')}` : '';
-      if (phase) opts.onEvent({ type: 'phase', text: phase });
-    });
     let msg: Anthropic.Beta.BetaMessage;
     try {
-      msg = await stream.finalMessage();
+      if (or) {
+        const t = await openrouterTurn({ apiKey: opts.apiKey, model: p.model, effort: p.effort, system: systemText, messages, tools: orTools, signal: turnAbort.signal,
+          onText: d => opts.onEvent({ type: 'text', text: d }), onPhase: ph => opts.onEvent({ type: 'phase', text: ph }), onActivity: () => { lastActivity = Date.now(); } });
+        msg = { content: t.content, stop_reason: t.stop_reason, usage: t.usage } as any;
+        addOpenRouterUsage(usage, t.usage);
+      } else {
+        const stream = client!.beta.messages.stream(params, { signal: turnAbort.signal });
+        stream.on('streamEvent', () => { lastActivity = Date.now(); });
+        stream.on('text', (d: string) => opts.onEvent({ type: 'text', text: d }));
+        stream.on('streamEvent', (ev: any) => {
+          if (ev.type !== 'content_block_start') return;
+          const b = ev.content_block;
+          const phase = b.type === 'thinking' || b.type === 'redacted_thinking' ? 'Thinking' : b.type === 'text' ? 'Writing'
+            : b.type === 'server_tool_use' ? (b.name === 'web_fetch' ? 'Reading a web page' : 'Searching the web')
+            : b.type === 'tool_use' ? `Preparing ${String(b.name).replace(/_/g, ' ')}` : '';
+          if (phase) opts.onEvent({ type: 'phase', text: phase });
+        });
+        msg = await stream.finalMessage();
+        addUsage(usage, p, msg.usage);
+      }
       jsonRetries = 0;
     } catch (err) {
       clearInterval(watchdog); opts.signal?.removeEventListener('abort', onStop);
@@ -268,12 +285,11 @@ async function withBudget<T>(p: Promise<T>, ms: number, name: string): Promise<T
         opts.onEvent({ type: 'notice', text: 'No response from the model for 4 minutes; retrying this step' });
         continue;
       }
-      if (err instanceof Anthropic.APIError || jsonRetries++ >= 2) throw err;
+      if (err instanceof Anthropic.APIError || (err as any)?.api || jsonRetries++ >= 2) throw err;
       opts.onEvent({ type: 'notice', text: 'a tool call arrived malformed; retrying the turn' });
       continue;
     }
     clearInterval(watchdog); opts.signal?.removeEventListener('abort', onStop);
-    addUsage(usage, p, msg.usage);
     opts.onEvent({ type: 'usage', usage: { ...usage } });
     messages.push({ role: 'assistant', content: msg.content as Anthropic.Beta.BetaContentBlockParam[] });
     for (const b of msg.content as any[]) {
@@ -306,6 +322,22 @@ async function withBudget<T>(p: Promise<T>, ms: number, name: string): Promise<T
     const uses = msg.content.filter(b => b.type === 'tool_use') as Anthropic.Beta.BetaToolUseBlock[];
     if (uses.length) opts.onEvent({ type: 'phase', text: `Running ${uses.map(u => u.name.replace(/_/g, ' ')).join(', ')}` });
     const results = await Promise.all(uses.map(async u => {
+      if (or && u.name === 'web_search') {   // the OpenRouter path's web search, run here (Anthropic runs its own server-side)
+        const q = String((u.input as any)?.query ?? '');
+        opts.onEvent({ type: 'server_tool', name: 'web_search', input: { query: q } });
+        if (++orSearches > (p.webUses ?? 4) * 2) return { type: 'tool_result' as const, tool_use_id: u.id, is_error: true, content: 'web search budget for this answer is used up; answer from what you have' };
+        try {
+          const w = await untilStopped(openrouterWebSearch(opts.apiKey, q, opts.signal), opts.signal);
+          usage.searches += 1; usage.usd += w.cost; opts.onEvent({ type: 'usage', usage: { ...usage } });
+          for (const r of w.results) citations.push({ url: r.url, title: r.title });
+          const text = `${w.summary}\n\nSOURCES:\n${w.results.map(r => `- ${r.title ?? ''} — ${r.url}${r.content ? `\n  ${r.content.replace(/\s+/g, ' ').slice(0, 600)}` : ''}`).join('\n')}`;
+          evidence += '\n' + text.slice(0, 200_000);
+          return { type: 'tool_result' as const, tool_use_id: u.id, content: text };
+        } catch (e) {
+          if (e instanceof StoppedError) throw e;
+          return { type: 'tool_result' as const, tool_use_id: u.id, is_error: true, content: String(e) };
+        }
+      }
       const def = toolByName(u.name);
       if (import.meta.env.DEV) console.debug('[tool start]', u.name, JSON.stringify(u.input).slice(0, 300));   // test scripts read these
       opts.onEvent({ type: 'tool_call', name: u.name, input: u.input });

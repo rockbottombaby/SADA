@@ -8,7 +8,16 @@
   import { UI_TOOLS } from './uiTools';
   import { caseTool, caseSummary, KIND_LABEL, type CaseFile, type CaseKind } from './caseFile';
   import { PROFILES, profileById, emptyUsage, type Usage } from './models';
-  import { settings, saveSettings } from './prefs.svelte';
+  import { OPENROUTER_MODELS, startOpenRouterSignIn } from './openrouter';
+  // one model menu for both providers: "anthropic:fast" or "openrouter:<model id>"; the entry says which key it runs on
+  const modelChoice = $derived(settings.provider === 'openrouter' ? `openrouter:${settings.openrouterModel}` : `anthropic:${settings.profile}`);
+  function chooseModel(v: string) {
+    const [prov, id] = [v.slice(0, v.indexOf(':')), v.slice(v.indexOf(':') + 1)];
+    settings.provider = prov as 'anthropic' | 'openrouter';
+    if (prov === 'openrouter') settings.openrouterModel = id; else settings.profile = id;
+    saveSettings();
+  }
+  import { settings, saveSettings, hasKey, activeKey, activeProfile, usingOpenRouter } from './prefs.svelte';
   import { showLive } from './live.svelte';
   import { trailStart, trailCall, trailResult, trailWeb, trailProgress, trailPhase, trailEnd, focusEvidence } from './trail.svelte';
   import { kvGet, kvSet } from './idb';
@@ -97,7 +106,7 @@
     if (ph && ph.index != null && composerEl) { composerEl.focus(); composerEl.setSelectionRange(ph.index, ph.index + ph[0].length); return; }
     const q = (text ?? input).trim();
     if (!q || running) return;
-    if (!settings.apiKey) { app.keySetupOpen = true; return; }
+    if (!hasKey()) { app.keySetupOpen = true; return; }
     input = ''; running = true; abort = new AbortController();
     if (composerEl) composerEl.style.height = 'auto';   // shrink the auto-grown box back
     const chat = active;
@@ -107,7 +116,7 @@
     chat.history.push({ role: 'user', content: `${q}\n\n[App state]\n${appState()}` });
     chat.turns.push({ role: 'user', text: q, cards: [] }, { role: 'assistant', text: '', cards: [] });
     const cur = chat.turns[chat.turns.length - 1];
-    const prof = profileById(settings.profile);
+    const prof = activeProfile();
     // Thinking blocks are bound to the model and tool list that produced them. After switching model (Haiku and
     // Sonnet/Opus use different web tool versions) or toggling web search, drop earlier thinking; keep the conversation.
     const sig = `${prof.model}|${useWeb}`;
@@ -115,11 +124,11 @@
       chat.history = chat.history.map((m: any) => m.role === 'assistant' && Array.isArray(m.content)
         ? { ...m, content: m.content.filter((b: any) => b.type !== 'thinking' && b.type !== 'redacted_thinking') } : m);
     chat.sig = sig;
-    cur.profile = prof.label;
+    cur.profile = prof.provider === 'openrouter' ? `${prof.label.replace(/ · (fast|balanced|deep)$/, '')} · OpenRouter` : `${prof.label.replace(/ \(.*\)$/, '')} · Anthropic key`;
     const before = { ...chat.usage };
     try {
       const out = await runAgent({
-        apiKey: settings.apiKey, profile: prof, ctx: app.ctx!, web: useWeb, signal: abort.signal, extraTools: [...UI_TOOLS, caseTool(() => (chat.case ??= { items: [] }), persist)],
+        apiKey: activeKey(), profile: prof, ctx: app.ctx!, web: useWeb, signal: abort.signal, extraTools: [...UI_TOOLS, caseTool(() => (chat.case ??= { items: [] }), persist)],
         system: systemPrompt(app.ctx!, `The user sees a map next to this chat. Results of data tools are shown to the user as cards in the chat automatically.
 Use the map_* tools to show what your answer is about. Each call REPLACES what is on the map (one clean scene per answer); set keep_current: true only to add to the scene you drew in this answer (e.g. a zone, then the flights through it). map_focus_zone for a country/FIR, map_show_flights for the flights you discuss, map_show_track for one flight, map_country_labels to highlight countries, map_fly_to for a point of interest. The app state says what the map currently shows and who drew it.`),
         messages: chat.history,
@@ -246,12 +255,14 @@ Use the map_* tools to show what your answer is about. Each call REPLACES what i
         <div class="label">Assistant</div>
         <h3>Ask about the flights</h3>
         <p>The assistant queries the same data as the Explore panel, shows results on the map, and checks every flight it names against the data.</p>
-        <div class="sugs">{#each SUGGESTIONS as s, i}<button class="sug" onclick={() => useSuggestion(s)}><em>0{i + 1}</em><span>{s}</span><i>→</i></button>{/each}</div>
-        {#if !settings.apiKey}
+        {#if hasKey()}
+          <div class="sugs">{#each SUGGESTIONS as s, i}<button class="sug" onclick={() => useSuggestion(s)}><em>0{i + 1}</em><span>{s}</span><i>→</i></button>{/each}</div>
+        {:else}
           <div class="keycard">
-            <b>One-time setup, about 5 minutes</b>
-            <p>The assistant runs on your own Anthropic account: usually about 1 cent per question. Exploring flights and the map work without it.</p>
-            <button class="primary" onclick={() => (app.keySetupOpen = true)}>Set up the assistant</button>
+            <b>Sign in to start</b>
+            <p>Log in with OpenRouter to enable your AI model.</p>
+            <button class="primary" onclick={startOpenRouterSignIn}>Sign in with OpenRouter</button>
+            <button class="link" onclick={() => (app.keySetupOpen = true)}>I have an Anthropic API key</button>
           </div>
         {/if}
       </div>
@@ -264,7 +275,7 @@ Use the map_* tools to show what your answer is about. Each call REPLACES what i
         {@const live = running && ti === active.turns.length - 1}
         {@const skey = `${active.id}-${ti}-steps`}
         <div class="asst">
-          <div class="who" class:live><img class="eye" src="/eye-32.png" srcset="/eye-32.png 1x, /eye-64.png 2x" width="20" height="20" alt="" /><span>SADA</span>{#if t.profile}<i>{profileById(t.profile).label.replace(/ \(.*\)/, '')}</i>{/if}</div>
+          <div class="who" class:live><img class="eye" src="/eye-32.png" srcset="/eye-32.png 1x, /eye-64.png 2x" width="20" height="20" alt="" /><span>SADA</span>{#if t.profile}<i>{t.profile}</i>{/if}</div>
           {#if steps.length}
             <div class="steps" class:open={expanded[skey]}>
               <button class="sh" onclick={() => (expanded[skey] = !expanded[skey])}>
@@ -317,7 +328,7 @@ Use the map_* tools to show what your answer is about. Each call REPLACES what i
           {/if}
           {#if t.verify || t.usd != null}
             <div class="meta">
-              {#if t.verify}{#if t.verify.ok}<span class="ok" title="Every flight fact in this answer was found in the data">✓ {t.verify.checked} facts verified</span>
+              {#if t.verify}{#if t.verify.ok}{#if t.verify.checked > 0}<span class="ok" title="Every flight fact in this answer was found in the data">✓ {t.verify.checked} facts verified</span>{/if}
                 {:else}<span class="bad">⚠ not found in the data: {[...t.verify.unverified.map((u: any) => u.value), ...t.verify.outOfCoverage].join(', ')}</span>{/if}
                 {#if t.verify.unverifiedNumbers?.length}<span class="warn" title="These figures were not found in any tool result (unit conversions and rounding can cause this)">· figures not in evidence: {t.verify.unverifiedNumbers.join(', ')}</span>{/if}{/if}
               {#if t.usd != null}<span>{t.profile} · {money(t.usd)}</span>{/if}
@@ -338,7 +349,10 @@ Use the map_* tools to show what your answer is about. Each call REPLACES what i
       {:else}<button class="send" title="Send (Enter)" aria-label="Send" disabled={!input.trim()}>↑</button>{/if}
     </div>
     <div class="row">
-      <select class="pill" bind:value={settings.profile} onchange={saveSettings} title="Model">{#each PROFILES as p}<option value={p.id}>{p.label}</option>{/each}</select>
+      <select class="pill" value={modelChoice} onchange={e => chooseModel((e.target as HTMLSelectElement).value)} title="Model, and which key it runs on">
+        <optgroup label={settings.apiKey ? 'Anthropic key' : 'Anthropic key (not connected)'}>{#each PROFILES as p}<option value={`anthropic:${p.id}`} disabled={!settings.apiKey}>{p.label.replace(/^(\w+) \((.*)\)$/, '$2 · $1')} · Anthropic</option>{/each}</optgroup>
+        <optgroup label={settings.openrouterKey ? 'OpenRouter' : 'OpenRouter (not signed in)'}>{#each OPENROUTER_MODELS as m}<option value={`openrouter:${m.id}`} disabled={!settings.openrouterKey}>{m.label.replace(/ · (fast|balanced|deep)$/, '')} · OpenRouter</option>{/each}</optgroup>
+      </select>
       <button type="button" class="pill" class:on={useWeb} title="Allow web search" onclick={() => (useWeb = !useWeb)}>Web {useWeb ? 'on' : 'off'}</button>
       <span class="sp"></span>
       <span class="cost" title="Estimated cost of this chat">{money(active.usage.usd)}</span>
@@ -379,6 +393,7 @@ Use the map_* tools to show what your answer is about. Each call REPLACES what i
   .sug span { flex: 1; } .sug i { font-style: normal; color: var(--faint); transition: transform .2s; }
   .sug:hover { background: transparent; color: var(--ink); } .sug:hover i { transform: translateX(3px); color: var(--ink); }
   .keycard { margin-top: 18px; padding: 14px; border: 1px solid var(--line2); border-radius: var(--r); display: flex; flex-direction: column; gap: 6px; align-items: flex-start; font-size: 13px; }
+  .keycard .link { border: 0; padding: 0; background: none; color: var(--muted); text-decoration: underline; text-transform: none; letter-spacing: 0; font-size: 11.5px; cursor: pointer; align-self: flex-start; margin-top: 2px; }
   .keycard p { margin: 0 0 6px !important; color: var(--muted); font-size: 12px !important; line-height: 1.55 !important; }
   .md :global(.ev) { display: inline-block; font-family: var(--mono); font-size: 9.5px; letter-spacing: 0; padding: 0 5px; margin: 0 1px; border: 1px solid var(--line2); border-radius: 3px; color: var(--muted); vertical-align: 1px; text-transform: none; }
   .md :global(.ev:hover) { color: var(--ink); border-color: var(--ink); background: transparent; }
@@ -457,6 +472,6 @@ Use the map_* tools to show what your answer is about. Each call REPLACES what i
   .send:disabled { border-color: var(--line2); opacity: .5; } .send.stop { font-size: 9px; }
   .row { display: flex; gap: 6px; align-items: center; }
   .pill { font-size: 9.5px; padding: 4px 9px; color: var(--muted); border: 1px solid var(--line2); border-radius: var(--r); text-transform: uppercase; letter-spacing: 1.4px; }
-  select.pill { padding: 4px 6px; } button.pill.on { color: var(--ink); border-color: var(--ink); }
+  select.pill { padding: 4px 6px; max-width: 46%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; } button.pill.on { color: var(--ink); border-color: var(--ink); }
   .sp { flex: 1; } .cost { color: var(--faint); font-size: 10.5px; font-family: var(--mono); }
 </style>

@@ -4,7 +4,8 @@ The assistant helps journalists and researchers turn a broad claim into specific
 almost never labelled in public data, so it has to find, test and document connections. It does this under strict
 evidentiary standards: every figure traces to a query, and every finding states how solid it is.
 
-It runs Claude in the user's browser, on the user's own Anthropic API key. The same tools are available to MCP clients
+It runs in the user's browser on the user's own account: signed in with OpenRouter (any of a short list of frontier models) or
+with an Anthropic API key (Claude). The same tools are available to MCP clients
 through `mcp/`.
 
 ## Method

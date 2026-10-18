@@ -4,6 +4,7 @@
   import { kvGet, kvSet } from './idb';
   import { runAgent, systemPrompt, RESEARCH_BRIEF, StoppedError, type Citation } from './agent';
   import { settings } from './prefs.svelte';
+  import { hasKey, activeKey, activeProfile } from './prefs.svelte';
   import { profileById } from './models';
 
   let note = $state(''), noteState = $state('');
@@ -29,12 +30,12 @@
   });
   async function saveNote() { await kvSet('note:' + leg.leg_id, note); noteState = 'saved in this browser'; }
   async function runResearch() {
-    if (!settings.apiKey) { app.keySetupOpen = true; return; }
+    if (!hasKey()) { app.keySetupOpen = true; return; }
     running = true; log = []; live = ''; abort = new AbortController(); tab = 'research';
     try {
-      const prof = profileById(settings.researchProfile);
+      const prof = activeProfile('researchProfile');
       const out = await runAgent({
-        apiKey: settings.apiKey, profile: prof, ctx: app.ctx!, web: true, signal: abort.signal, system: systemPrompt(app.ctx!), maxTurns: 20,
+        apiKey: activeKey(), profile: prof, ctx: app.ctx!, web: true, signal: abort.signal, system: systemPrompt(app.ctx!), maxTurns: 20,
         messages: [{ role: 'user', content: `${RESEARCH_BRIEF}\n\nDossier (from the flight database):\n${JSON.stringify({ leg: d.leg, aircraft: d.aircraft, zones_crossed: d.zones_crossed, same_aircraft_nearby: d.same_aircraft_nearby })}` }],
         onEvent: e => {
           if (e.type === 'text') live += e.text;

@@ -3,14 +3,19 @@
   // what it costs, how to get a key step by step, and a live check that the pasted key works.
   import Anthropic from '@anthropic-ai/sdk';
   import { app } from './state.svelte';
-  import { settings, saveSettings } from './prefs.svelte';
+  import { settings, saveSettings, hasKey } from './prefs.svelte';
+  import { startOpenRouterSignIn, orModel, openrouterCredits, OPENROUTER_CREDITS_URL } from './openrouter';
+  let credits = $state<{ balance: number; used: number } | null>(null);
+  $effect(() => { if (app.keySetupOpen && settings.provider === 'openrouter' && settings.openrouterKey) openrouterCredits(settings.openrouterKey).then(c => (credits = c)); else credits = null; });
 
   const CONSOLE = 'https://console.anthropic.com';
   let path = $state<'have' | 'need'>('need');
+  let showAnthropic = $state(false);
   let key = $state(settings.apiKey);
-  let check = $state<{ state: 'idle' | 'checking' | 'ok' | 'bad'; msg?: string }>({ state: settings.apiKey ? 'ok' : 'idle' });
+  let check = $state<{ state: 'idle' | 'checking' | 'ok' | 'bad'; msg?: string }>({ state: hasKey() ? 'ok' : 'idle' });
+  const viaOpenRouter = $derived(settings.provider === 'openrouter' && !!settings.openrouterKey);
 
-  $effect(() => { if (app.keySetupOpen) { key = settings.apiKey; path = settings.apiKey ? 'have' : 'need'; check = { state: settings.apiKey ? 'ok' : 'idle' }; } });
+  $effect(() => { if (app.keySetupOpen) { key = settings.apiKey; path = settings.apiKey ? 'have' : 'need'; check = { state: hasKey() ? 'ok' : 'idle' }; showAnthropic = !!settings.apiKey; } });
 
   async function connect() {
     const k = key.trim();
@@ -20,7 +25,7 @@
     try {
       // listing the models costs nothing and proves the key works
       await new Anthropic({ apiKey: k, dangerouslyAllowBrowser: true }).models.list({ limit: 1 });
-      settings.apiKey = k; saveSettings();
+      settings.apiKey = k; settings.provider = 'anthropic'; saveSettings();
       check = { state: 'ok' };
     } catch (e: any) {
       const s = e?.status;
@@ -32,7 +37,11 @@
       if (s === 429) { settings.apiKey = k; saveSettings(); }
     }
   }
-  function remove() { settings.apiKey = ''; saveSettings(); key = ''; check = { state: 'idle' }; }
+  function remove() {
+    if (viaOpenRouter) { settings.openrouterKey = ''; settings.provider = settings.apiKey ? 'anthropic' : settings.provider; }
+    else settings.apiKey = '';
+    saveSettings(); key = ''; check = { state: hasKey() ? 'ok' : 'idle' };
+  }
   const close = () => (app.keySetupOpen = false);
 </script>
 
@@ -44,26 +53,21 @@
     <button class="x" aria-label="Close" onclick={close}>✕</button>
     <div class="label">Assistant</div>
     <h3>Turn on the assistant</h3>
-    <p class="lead">An AI research partner (Claude, made by Anthropic). Ask in plain words: it searches the flight data for you, shows the results on the map, and checks every flight it names against the data.</p>
-
-    <ul class="gets">
-      <li><b>Answers questions</b><span>“Which cargo flights went from the US to Israel through Icelandic airspace last month?”</span></li>
-      <li><b>Follows leads</b><span>Tracks an aircraft over time, compares flights with US export figures and government contracts.</span></li>
-      <li><b>Helps you write</b><span>Summaries with sources, and drafts of freedom-of-information requests.</span></li>
-    </ul>
-
-    <div class="why">
-      <b>Why do I need a key?</b>
-      <p>This site is free and has no accounts. The AI runs on your own Anthropic account, so you pay Anthropic directly for what you use: usually <b>about 1 cent per question</b>, a few cents for deep research. $5 of credit lasts a long time. Exploring flights and the map work without a key.</p>
-    </div>
+    <p class="lead">Ask in plain words; it searches the flight data, shows its steps on the map and checks every flight it names.</p>
 
     {#if check.state === 'ok'}
       <div class="done">
         <div class="tick">✓</div>
-        <div><b>Connected. The assistant is ready.</b><p>Your key is saved in this browser only.</p></div>
+        <div><b>Connected. The assistant is ready.</b><p>{#if viaOpenRouter}Signed in with OpenRouter · {orModel(settings.openrouterModel).label.replace(/ · (fast|balanced|deep)$/, '')}{#if credits && Number.isFinite(credits.balance)} · ${credits.balance.toFixed(2)} of credit left{/if}. Change the model under the question box. <a href={OPENROUTER_CREDITS_URL} target="_blank" rel="noopener noreferrer">Add credits ↗</a>{:else}Your Anthropic key is saved in this browser only.{/if}</p></div>
       </div>
-      <div class="row"><button class="ghost" onclick={remove}>Remove key</button><span class="sp"></span><button class="primary" onclick={close}>Start asking</button></div>
+      <div class="row"><button class="ghost" onclick={remove}>{viaOpenRouter ? 'Sign out' : 'Remove key'}</button><span class="sp"></span><button class="primary" onclick={close}>Start asking</button></div>
     {:else}
+      <div class="or">
+        <div><b>Sign in with OpenRouter</b><p>Log in with OpenRouter to enable your AI model. Claude, GPT, Gemini and more; you pay only for what you use.</p></div>
+        <button class="primary" onclick={startOpenRouterSignIn}>Sign in</button>
+      </div>
+      <button class="link alt" onclick={() => (showAnthropic = !showAnthropic)}>{showAnthropic ? 'Hide the Anthropic option' : 'I have an Anthropic API key instead'}</button>
+      {#if showAnthropic}
       <div class="tabs">
         <button class:on={path === 'need'} onclick={() => (path = 'need')}>Help me get a key</button>
         <button class:on={path === 'have'} onclick={() => (path = 'have')}>I already have a key</button>
@@ -88,9 +92,10 @@
         <button class="primary" disabled={check.state === 'checking'} onclick={connect}>{check.state === 'checking' ? 'Checking…' : 'Connect'}</button>
       </div>
       {#if check.state === 'bad'}<p class="bad">{check.msg}</p>{/if}
+      {/if}
     {/if}
 
-    <p class="safe">🔒 Your key stays in this browser and is sent only to Anthropic, never to us. You can remove it here at any time, or delete it in the Anthropic Console.</p>
+    <p class="safe">🔒 Your key stays in this browser and goes only to OpenRouter or Anthropic, never to us. Searching flights and the map work without signing in.</p>
   </div>
 {/if}
 
@@ -102,11 +107,10 @@
   .x { position: absolute; top: 18px; right: 18px; width: 32px; height: 32px; padding: 0; font-size: 12px; letter-spacing: 0; }
   h3 { margin: 4px 0 8px; font-size: 20px; font-weight: 600; letter-spacing: -.2px; }
   .lead { color: var(--muted); font-size: 13.5px; line-height: 1.6; margin: 0 0 14px; }
-  .gets { list-style: none; margin: 0 0 14px; padding: 0; display: flex; flex-direction: column; gap: 8px; }
-  .gets li { display: flex; flex-direction: column; gap: 2px; padding-left: 14px; border-left: 1px solid var(--line2); font-size: 13px; }
-  .gets span { color: var(--muted); font-size: 12.5px; line-height: 1.5; }
-  .why { background: rgba(232,232,232,.04); border: 1px solid var(--line); border-radius: var(--r); padding: 12px 14px; font-size: 13px; }
-  .why p { margin: 4px 0 0; color: var(--muted); line-height: 1.6; font-size: 12.5px; } .why p b { color: var(--ink); font-weight: 500; }
+  .or { display: flex; gap: 14px; align-items: center; justify-content: space-between; margin-top: 16px; padding: 14px 16px; border: 1px solid rgba(120,165,255,.35); background: rgba(90,140,255,.06); border-radius: var(--r); font-size: 13px; }
+  .or p { margin: 3px 0 0; color: var(--muted); font-size: 12.5px; line-height: 1.5; } .or button { flex: none; }
+  .link { border: 0; padding: 0; background: none; color: var(--muted); text-decoration: underline; text-transform: none; letter-spacing: 0; font-size: 11.5px; cursor: pointer; }
+  .alt { display: block; margin: 14px 0 0; }
   .tabs { display: flex; gap: 0; margin: 18px 0 4px; border-bottom: 1px solid var(--line); }
   .tabs button { border: 0; border-radius: 0; padding: 10px 14px 9px 0; margin-right: 14px; margin-bottom: -1px; border-bottom: 1px solid transparent; color: var(--faint); font-size: 9.5px; }
   .tabs button:hover { background: transparent; color: var(--ink); } .tabs button.on { color: var(--ink); border-bottom-color: var(--ink); }
@@ -121,7 +125,7 @@
   .bad { color: var(--sov); font-size: 12.5px; line-height: 1.5; margin: 8px 0 0; }
   .done { display: flex; gap: 12px; align-items: center; margin-top: 18px; padding: 14px; border: 1px solid var(--line2); border-radius: var(--r); font-size: 13.5px; }
   .done p { margin: 2px 0 0; color: var(--muted); font-size: 12px; }
-  .tick { width: 30px; height: 30px; border-radius: 50%; display: grid; place-items: center; border: 1px solid var(--ink); flex: none; }
+  .tick { width: 30px; height: 30px; border-radius: 50%; display: grid; place-items: center; border: 1px solid var(--ok, #7fd1a0); color: var(--ok, #7fd1a0); background: rgba(127,209,160,.1); flex: none; }
   .row { display: flex; gap: 8px; align-items: center; margin-top: 14px; } .sp { flex: 1; }
   .ghost { font-size: 9.5px; }
   .safe { color: var(--faint); font-size: 11.5px; line-height: 1.55; margin: 18px 0 0; padding-top: 12px; border-top: 1px solid var(--line); }

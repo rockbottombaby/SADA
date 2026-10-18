@@ -60,7 +60,7 @@
           <section id="about-what">
             <h2>What it does</h2>
             <ul class="plain">
-              <li><b>Ask the AI</b> any question in plain language: it investigates, shows each step on the map and cites the evidence for every figure.</li>
+              <li><b>Ask the AI</b> any question in plain language: it investigates, shows each step on the map and cites the evidence for every figure. Sign in with OpenRouter and pick a frontier model (Claude, GPT, Gemini and more).</li>
               <li><b>Find flights</b> yourself between places, through any country's airspace, or by aircraft and operator, since March 2023.</li>
               <li><b>Follow live traffic</b>, including military aircraft worldwide.</li>
             </ul>

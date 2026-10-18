@@ -1,4 +1,4 @@
-// usage: KEY=… DATA=… [CENSUS=…] [PROFILE=balanced] [HEADFUL=1: a visible window to watch] [SHOTS=dir: a screenshot every 20 s] node chat3.mjs "question" out.png — one chat question end to end,
+// usage: KEY=… DATA=… [CENSUS=…] [PROFILE=balanced] [OR_KEY=sk-or-… OR_MODEL=…: via OpenRouter] [HEADFUL=1: a visible window to watch] [SHOTS=dir: a screenshot every 20 s] node chat3.mjs "question" out.png — one chat question end to end,
 // logging what the assistant is doing every 20 s (to see where it spends time or stalls), then the answer
 import puppeteer from 'puppeteer-core';
 const [q, out] = process.argv.slice(2);
@@ -7,8 +7,10 @@ const p = await b.newPage(); await p.setViewport({ width: 1600, height: 1000 });
 p.on('pageerror', e => console.log('[pageerror]', String(e).slice(0, 400)));
 const T0 = Date.now(); p.on('console', m => { if (/^\[(tool |q )/.test(m.text())) console.log(`  ${Math.round((Date.now() - T0) / 1000)} s ${m.text()}`); });
 await p.goto('http://localhost:5181/', { waitUntil: 'domcontentloaded' });
-await p.evaluate((k, c, prof, data) => { localStorage.setItem('oam.apiKey', k); if (c) localStorage.setItem('oam.censusKey', c); localStorage.setItem('oam.profile', prof); localStorage.setItem('oam.dataUrl', data); },
-  process.env.KEY, process.env.CENSUS || '', process.env.PROFILE || 'balanced', process.env.DATA);
+await p.evaluate((k, c, prof, data, ork, orm) => { localStorage.setItem('oam.apiKey', k || ''); if (c) localStorage.setItem('oam.censusKey', c); localStorage.setItem('oam.profile', prof); localStorage.setItem('oam.dataUrl', data);
+  // OR_KEY=sk-or-… OR_MODEL=anthropic/claude-haiku-5.5 runs the question through OpenRouter instead
+  if (ork) { localStorage.setItem('oam.provider', 'openrouter'); localStorage.setItem('oam.openrouterKey', ork); localStorage.setItem('oam.openrouterModel', orm || 'anthropic/claude-haiku-5.5'); } else localStorage.setItem('oam.provider', 'anthropic'); },
+  process.env.KEY, process.env.CENSUS || '', process.env.PROFILE || 'balanced', process.env.DATA, process.env.OR_KEY || '', process.env.OR_MODEL || '');
 await p.reload({ waitUntil: 'domcontentloaded' });
 await p.waitForFunction(() => window.__oam?.ctx && !document.querySelector('.splash'), { timeout: 90000 });
 await p.evaluate(() => (window.__oam.app.memorialOpen = false));
