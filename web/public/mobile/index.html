@@ -1,0 +1,171 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0c0c0c">
+<title>SADA — open it on a computer</title>
+<meta name="description" content="SADA is a free, open-source tool for tracking the flights that carry weapons. It is built for a computer screen.">
+<link rel="icon" href="/eye-32.png">
+<link rel="apple-touch-icon" href="/eye-192.png">
+<meta property="og:title" content="SADA — track the flights that carry weapons">
+<meta property="og:description" content="Free, open-source flight search, live map and AI research assistant for journalists and researchers.">
+<meta property="og:url" content="https://sadawatch.com/">
+<style>
+  :root { --bg: #0c0c0c; --panel: #151515; --line: #262626; --line2: #343434; --ink: #ececec; --text: #c6c6c6; --muted: #8a8a8a; --faint: #5e5e5e;
+    --obs: #f2c14e; --inf: #8fb8ff; --r: 10px; }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html { background: var(--bg); }
+  body { margin: 0; background: var(--bg); color: var(--text); font: 16px/1.55 -apple-system, "Inter", "Segoe UI", Helvetica, Arial, sans-serif;
+    -webkit-font-smoothing: antialiased; padding: env(safe-area-inset-top) 0 env(safe-area-inset-bottom); }
+  main { max-width: 480px; margin: 0 auto; padding: 0 22px; }
+  a { color: var(--ink); }
+
+  /* hero */
+  .hero { min-height: 92svh; display: flex; flex-direction: column; justify-content: center; padding: 40px 0 28px; position: relative; }
+  .eye { width: 76px; height: 76px; image-rendering: pixelated; border-radius: 50%; margin-bottom: 26px;
+    filter: drop-shadow(0 0 22px rgba(80,140,255,.45)); animation: watch 3.2s ease-in-out infinite; }
+  @keyframes watch { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.05); } }
+  .name { font-size: 13px; letter-spacing: 7px; font-weight: 700; color: var(--ink); margin-bottom: 12px; }
+  h1 { font-size: 34px; line-height: 1.12; letter-spacing: -.5px; margin: 0 0 16px; color: var(--ink); font-weight: 650; }
+  .lead { font-size: 17px; margin: 0 0 30px; color: var(--text); }
+
+  /* the one thing to do */
+  .desk { border: 1px solid var(--line2); border-radius: var(--r); background: var(--panel); padding: 18px 18px 16px; }
+  .desk .t { display: flex; align-items: center; gap: 10px; color: var(--ink); font-weight: 600; font-size: 15px; margin-bottom: 6px; }
+  .desk .t svg { flex: none; }
+  .desk p { margin: 0 0 14px; font-size: 14px; color: var(--muted); }
+  .url { font-family: ui-monospace, "SF Mono", Menlo, monospace; font-size: 15px; color: var(--ink); background: #0f0f0f; border: 1px solid var(--line);
+    border-radius: 8px; padding: 12px 14px; margin-bottom: 12px; text-align: center; letter-spacing: .3px; }
+  .btns { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  button, .btn { appearance: none; font: inherit; font-size: 12.5px; letter-spacing: 1px; text-transform: uppercase; font-weight: 600; padding: 15px 8px; white-space: nowrap;
+    border-radius: 8px; border: 1px solid var(--line2); background: transparent; color: var(--ink); cursor: pointer; text-align: center; text-decoration: none; }
+  .primary { background: var(--ink); color: var(--bg); border-color: var(--ink); }
+  button:active, .btn:active { transform: scale(.98); }
+  .done { color: var(--obs); font-size: 13px; text-align: center; margin-top: 10px; }
+  .done:empty { display: none; }
+  .scroll { text-align: center; color: var(--faint); font-size: 12px; letter-spacing: 2px; text-transform: uppercase; margin-top: 30px; }
+
+  /* sections */
+  section { padding: 34px 0; border-top: 1px solid var(--line); }
+  h2 { font-size: 12px; letter-spacing: 2.5px; text-transform: uppercase; color: var(--muted); font-weight: 500; margin: 0 0 14px; }
+  section p { margin: 0 0 10px; }
+  .steps { list-style: none; padding: 0; margin: 0; counter-reset: s; }
+  .steps li { counter-increment: s; display: grid; grid-template-columns: 34px 1fr; gap: 8px; padding: 12px 0; border-top: 1px solid var(--line); }
+  .steps li:first-child { border-top: 0; padding-top: 0; }
+  .steps li::before { content: counter(s, decimal-leading-zero); font-family: ui-monospace, Menlo, monospace; color: var(--faint); font-size: 13px; padding-top: 2px; }
+  .steps b, .feats b { color: var(--ink); font-weight: 600; }
+  .feats { list-style: none; padding: 0; margin: 0; display: grid; gap: 10px; }
+  .feats li { background: var(--panel); border: 1px solid var(--line); border-radius: var(--r); padding: 14px 16px; font-size: 15px; }
+  .feats li span { display: block; color: var(--muted); font-size: 14px; margin-top: 2px; }
+  .key { display: grid; gap: 8px; margin-top: 14px; font-size: 14px; }
+  .key div { display: flex; gap: 10px; align-items: baseline; }
+  .sw { width: 14px; height: 3px; border-radius: 2px; flex: none; transform: translateY(-3px); }
+  .mem { display: flex; gap: 16px; align-items: center; }
+  .mem img { width: 84px; height: 84px; border-radius: var(--r); object-fit: cover; border: 1px solid var(--line2); flex: none; }
+  .mem p { font-size: 14px; margin: 0; }
+  .mem b { color: var(--ink); }
+  .end { padding: 34px 0 20px; border-top: 1px solid var(--line); }
+  footer { padding: 22px 0 36px; font-size: 12.5px; color: var(--faint); text-align: center; }
+  footer a { color: var(--muted); }
+  @media (prefers-reduced-motion: reduce) { .eye { animation: none; } }
+</style>
+</head>
+<body>
+<main>
+  <div class="hero">
+    <img class="eye" src="/eye-192.png" alt="">
+    <div class="name">SADA</div>
+    <h1>Track the flights that carry weapons.</h1>
+    <p class="lead">A free, open-source tool that helps journalists and researchers trace weapons flights and hold the governments behind them to account.</p>
+
+    <div class="desk">
+      <div class="t">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><rect x="3" y="4" width="18" height="12" rx="1.5"/><path d="M8 20h8M12 16v4"/></svg>
+        Open SADA on a computer
+      </div>
+      <p>SADA is built for a large screen: a map, a search panel and a research assistant side by side. Phones aren't supported yet.</p>
+      <div class="url">sadawatch.com</div>
+      <div class="btns">
+        <button class="primary" id="share">Send to myself</button>
+        <button id="copy">Copy link</button>
+      </div>
+      <div class="done" id="done" role="status" aria-live="polite"></div>
+    </div>
+    <div class="scroll">What is SADA ↓</div>
+  </div>
+
+  <section>
+    <h2>Why it exists</h2>
+    <p>States use large-scale data and AI-assisted analysis to wage war. SADA turns the same kind of capability toward
+      accountability. Flight-tracking sites show what is in the air now; SADA answers the questions reporting needs: which flights
+      carried weapons, through whose airspace, and who let them pass.</p>
+  </section>
+
+  <section>
+    <h2>What you can do</h2>
+    <ul class="feats">
+      <li><b>Find flights</b><span>Between countries or airports, through any country's airspace, or by aircraft and airline. Every flight since March 2023.</span></li>
+      <li><b>See the details</b><span>A flight's route, which countries it flew over and when, and what the aircraft did before and after.</span></li>
+      <li><b>Watch live traffic</b><span>Military aircraft worldwide, as they fly.</span></li>
+      <li><b>Ask the assistant</b><span>In plain language. It investigates, shows each step on the map and gives a source for every number.</span></li>
+    </ul>
+  </section>
+
+  <section>
+    <h2>How it works</h2>
+    <ol class="steps">
+      <li><span><b>Volunteers' receivers</b> around the world pick up the signals aircraft broadcast.</span></li>
+      <li><span><b>Every day, SADA</b> turns that archive into flights, over 120 million so far, and works out which countries' airspace each one crossed.</span></li>
+      <li><span><b>You search it</b> in your browser. Nothing you look up is stored or tracked.</span></li>
+    </ol>
+    <div class="key">
+      <div><i class="sw" style="background:var(--obs)"></i><span><b style="color:var(--ink)">Observed</b> — seen inside the airspace.</span></div>
+      <div><i class="sw" style="background:var(--inf)"></i><span><b style="color:var(--ink)">Inferred</b> — its path across a gap in coverage crosses it.</span></div>
+      <div><i class="sw" style="background:var(--faint)"></i><span>Flight data never shows cargo. SADA shows which flights to ask about.</span></div>
+    </div>
+  </section>
+
+  <section>
+    <h2>In memory</h2>
+    <div class="mem">
+      <img src="/shaban.webp" alt="Sha'ban Ahmad al-Dalou">
+      <p><b>Sha'ban Ahmad al-Dalou</b> (2004–2024), a young Palestinian software engineering student, burned alive when Israel bombed an emergency tent camp in Deir al-Balah, Gaza. SADA takes its name from his initials.</p>
+    </div>
+  </section>
+
+  <div class="end">
+    <div class="btns">
+      <button class="primary" id="share2">Send to myself</button>
+      <button id="copy2">Copy link</button>
+    </div>
+    <div class="done" id="done2" role="status" aria-live="polite"></div>
+  </div>
+
+  <footer>
+    Free and open source · <a href="https://github.com/rockbottombaby/SADA">Source code</a><br>
+    <a href="/?full=1">Open the full app anyway</a>
+  </footer>
+</main>
+<script>
+  // Send the link to a computer: the phone's share sheet (mail, messages, notes…) where there is one, else copy it
+  const URL_ = 'https://sadawatch.com';
+  const say = (id, t) => { const el = document.getElementById(id); el.textContent = t; setTimeout(() => { if (el.textContent === t) el.textContent = ''; }, 3500); };
+  async function copy(id) {
+    try { await navigator.clipboard.writeText(URL_); say(id, 'Link copied. Open it on your computer.'); }
+    catch { say(id, 'Copy this: sadawatch.com'); }
+  }
+  async function share(id) {
+    if (navigator.share) {
+      try { await navigator.share({ title: 'SADA', text: 'SADA: track the flights that carry weapons. Open on a computer:', url: URL_ }); return; }
+      catch (e) { if (e && e.name === 'AbortError') return; }
+    }
+    location.href = 'mailto:?subject=' + encodeURIComponent('SADA, open on a computer') + '&body=' + encodeURIComponent(URL_);
+  }
+  document.getElementById('copy').onclick = () => copy('done');
+  document.getElementById('copy2').onclick = () => copy('done2');
+  document.getElementById('share').onclick = () => share('done');
+  document.getElementById('share2').onclick = () => share('done2');
+</script>
+</body>
+</html>
