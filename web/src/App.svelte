@@ -96,6 +96,7 @@
   {/if}
   </div>
   <div class="hright">
+    {#if snack && app.ready}<span class="note" role="status"><i></i>Early beta — some hangs may be expected<button class="x" aria-label="Dismiss" title="Dismiss" onclick={dismissSnack}>✕</button></span>{/if}
     {#if app.status}<span class="status">{app.status}</span>{/if}
     <button class="mi" onclick={() => (app.coffeeOpen = true)}>Buy me a coffee ☕</button>
     <button class="gear" title="Settings" onclick={() => (app.settingsOpen = true)}>Settings</button>
@@ -118,13 +119,6 @@
 <Coffee />
 <KeySetup />
 <Memorial />
-{#if snack && app.ready}
-  <div class="snack" role="status">
-    <i></i>
-    <span>Just launched. I’m fixing the first issues as they come up, so a search may hang now and then; updates go out as they’re ready.</span>
-    <button class="x" aria-label="Dismiss" title="Dismiss" onclick={dismissSnack}>✕</button>
-  </div>
-{/if}
 
 {#if !app.ready && !app.error}
   <div class="splash" role="status" aria-live="polite">
@@ -162,11 +156,11 @@
   .stage { flex: 1; position: relative; min-width: 320px; }
   .right { width: 400px; flex: none; background: var(--bg); border-left: 1px solid var(--line); display: flex; flex-direction: column; min-height: 0; }
   .err { padding: 40px; max-width: 700px; }
-  .snack { position: fixed; z-index: 45; left: 50%; bottom: 18px; transform: translateX(-50%); display: flex; align-items: center; gap: 12px; max-width: min(640px, calc(100vw - 32px));
-    padding: 10px 12px 10px 16px; background: rgba(20,20,20,.97); border: 1px solid var(--line2); border-radius: var(--r); box-shadow: 0 16px 40px rgba(0,0,0,.5); font-size: 12.5px; line-height: 1.45; color: var(--text); }
-  .snack i { width: 8px; height: 8px; border-radius: 50%; background: var(--obs, #f2c14e); flex: none; }
-  .snack .x { border: 0; background: none; padding: 4px 6px; color: var(--muted); font-size: 12px; cursor: pointer; flex: none; }
-  .snack .x:hover { color: var(--ink); background: none; }
+  /* the early-beta note: a small amber pill in the header, never over other controls */
+  .note { display: inline-flex; align-items: center; gap: 7px; padding: 4px 6px 4px 9px; border: 1px solid rgba(242,193,78,.45); border-radius: 999px; color: var(--obs, #f2c14e); font-size: 10px; letter-spacing: .4px; white-space: nowrap; margin-right: 6px; }
+  .note i { width: 6px; height: 6px; border-radius: 50%; background: var(--obs, #f2c14e); flex: none; }
+  .note .x { border: 0; background: none; padding: 0 3px; color: rgba(242,193,78,.7); font-size: 10px; cursor: pointer; line-height: 1; }
+  .note .x:hover { color: var(--obs, #f2c14e); background: none; }
   .splash { position: fixed; inset: 0; z-index: 100; background: #000; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 22px; animation: in .3s ease-out; }
   @keyframes in { from { opacity: 0; } }
   /* the eye, watching, with two thin rings turning around it */

@@ -10,10 +10,18 @@
   import WinCtl from './WinCtl.svelte';
   import FlightRow from './FlightRow.svelte';
   import ResearchTrail from './ResearchTrail.svelte';
+  import { ArcLayer, type ArcFlight } from './arcs';
   maplibregl.setWorkerUrl(workerUrl);
+  // flights as arcs lifted off the globe (WebGL custom layer): hover fans out overlapping arcs, click selects one
+  const arcs = new ArcLayer();
+  if (import.meta.env.DEV) (window as any).__arcs = arcs;
 
   let el: HTMLDivElement;
   let map: maplibregl.Map;
+  // the flight under the pointer (from the arc layer) and where to show its label
+  let hoverId = $state<string | null>(null);
+  let hoverAt = $state<[number, number]>([0, 0]);
+  const hoverLeg = $derived(hoverId ? app.map.flows.find(l => String(l.leg_id) === hoverId) ?? null : null);
   let loaded = $state(false);
   let drawPts: [number, number][] = [];
   let showZones = $state(true);
@@ -89,6 +97,7 @@
       map.addLayer({ id: 'track', type: 'line', source: 'track', filter: ['==', ['get', 'kind'], 'seg'],
         paint: { 'line-color': '#7fd1ff', 'line-width': 3 } });
       map.addLayer({ id: 'flows-sel', type: 'line', source: 'flows', filter: ['==', ['get', 'sel'], 1], paint: { 'line-color': '#ffffff', 'line-width': 2.5, 'line-blur': 0.5 } }, 'track-gap');
+      map.addLayer(arcs, 'track-gap');
       // country names appear by zoom: larger countries first, smaller ones as you zoom in (Natural Earth label rank).
       // Separate layers per band; the top layer (largest countries) wins label collisions.
       for (const [id, cond, minzoom] of [['clabels-4', ['>=', ['get', 'rank'], 6], 4.2], ['clabels-3', ['==', ['get', 'rank'], 5], 3.4],
@@ -162,9 +171,11 @@
       map.on('click', 'live', (e: any) => { if (app.map.drawMode) return; const hx = e.features?.[0]?.properties?.hex; live.selected = live.aircraft.find(a => a.hex === hx) ?? null; });
       map.on('mouseenter', 'live', () => (map.getCanvas().style.cursor = 'pointer'));
       map.on('mouseleave', 'live', () => (map.getCanvas().style.cursor = app.map.drawMode ? 'crosshair' : ''));
-      map.on('click', 'flows', (e: any) => { const id = e.features?.[0]?.properties?.leg_id; if (id && !app.map.drawMode) selectLeg(id); });
-      map.on('mouseenter', 'flows', () => (map.getCanvas().style.cursor = 'pointer'));
-      map.on('mouseleave', 'flows', () => (map.getCanvas().style.cursor = app.map.drawMode ? 'crosshair' : ''));
+      // flight arcs: the layer picks what is under the pointer (GPU); a click opens the hovered flight
+      map.on('mousemove', (e: maplibregl.MapMouseEvent) => { hoverAt = [e.point.x, e.point.y]; arcs.pointer(hoverAt); });
+      map.on('mouseout', () => { arcs.pointer(null); hoverId = null; });
+      arcs.onHover = id => { hoverId = id; map.getCanvas().style.cursor = id ? 'pointer' : app.map.drawMode ? 'crosshair' : ''; };
+      map.on('click', () => { const id = arcs.hovered(); if (id && !app.map.drawMode) selectLeg(id); });
       map.on('click', (e: maplibregl.MapMouseEvent) => {
         if (!app.map.drawMode) return;
         drawPts.push([e.lngLat.lng, e.lngLat.lat]);
@@ -286,7 +297,7 @@
   let tick = $state(0);
   $effect(() => { if (!live.on) return; const t = setInterval(() => tick++, 1000); return () => clearInterval(t); });
   const fmtAlt = (x: LiveAc['alt']) => (x === 'ground' ? 'on the ground' : x == null ? '–' : `${x.toLocaleString()} ft`);
-  $effect(() => { if (loaded) map.setLayoutProperty('flows', 'visibility', showFlowsLayer ? 'visible' : 'none'); });
+  $effect(() => { if (loaded) for (const id of ['flows', 'arcs']) map.setLayoutProperty(id, 'visibility', showFlowsLayer ? 'visible' : 'none'); });
   // highlighted countries are filled and always labelled
   $effect(() => {
     if (!loaded) return;
@@ -324,13 +335,16 @@
     const sel = app.selected?.leg_id;
     const legs = app.map.flows.filter(l => l.from_lat != null && l.to_lat != null);
     const n = Math.min(legs.length, MAX_FLOWS);
-    const op = n > 2000 ? 0.12 : n > 800 ? 0.18 : n > 300 ? 0.25 : n > 80 ? 0.4 : 0.65;   // fade dense sets so structure stays readable
-    const feats = legs.slice(0, MAX_FLOWS).map(l => ({
-      type: 'Feature' as const, properties: { leg_id: l.leg_id, mil: l.mil, evidence: l.evidence, op: l.leg_id === sel ? 1 : sel ? op * 0.45 : op, sel: l.leg_id === sel ? 1 : 0 },
-      geometry: { type: 'LineString' as const, coordinates: arc([Number(l.from_lon), Number(l.from_lat)], [Number(l.to_lon), Number(l.to_lat)]) },
-    }));
-    (map.getSource('flows') as maplibregl.GeoJSONSource).setData({ type: 'FeatureCollection', features: feats });
+    const op = n > 2000 ? 0.14 : n > 800 ? 0.2 : n > 300 ? 0.28 : n > 80 ? 0.45 : 0.7;   // fade dense sets so structure stays readable
+    // drawn by the arc layer (the GeoJSON 'flows' layer stays as the source of the selected flight's surface line)
+    const MIL: [number, number, number] = [199 / 255, 166 / 255, 1], INF: [number, number, number] = [143 / 255, 184 / 255, 1], OBS: [number, number, number] = [242 / 255, 193 / 255, 78 / 255];
+    const flights: ArcFlight[] = legs.slice(0, MAX_FLOWS).map(l => ({ id: String(l.leg_id), from: [Number(l.from_lon), Number(l.from_lat)], to: [Number(l.to_lon), Number(l.to_lat)],
+      color: l.mil == 1 ? MIL : l.evidence === 'inferred' ? INF : OBS, alpha: op }));
+    untrack(() => arcs.setFlights(flights));
+    (map.getSource('flows') as maplibregl.GeoJSONSource).setData(empty);
+    void sel;
   });
+  $effect(() => { if (loaded) arcs.setSelected(app.selected?.leg_id ?? null); });
   $effect(() => {
     if (!loaded) return;
     const tr = app.track, leg = app.selected;
@@ -414,6 +428,13 @@
 </script>
 
 <div class="map" class:full={anyMax()} bind:this={el}></div>
+{#if hoverLeg}
+  <div class="archint" style="left: {hoverAt[0] + 16}px; top: {hoverAt[1] + 14}px">
+    <b>{String(hoverLeg.callsigns || '').split(' ')[0] || hoverLeg.reg || hoverLeg.hex}</b>{#if hoverLeg.reg} <span>{hoverLeg.reg}</span>{/if}{#if hoverLeg.type} <span>· {hoverLeg.type}</span>{/if}
+    <div class="r">{hoverLeg.from_code ?? '?'} → {hoverLeg.to_code ?? '?'} <span>· {hoverLeg.date}</span>{#if hoverLeg.evidence === 'inferred'} <i>estimated</i>{/if}{#if hoverLeg.mil == 1} <i class="m">military</i>{/if}</div>
+    <small>click to open</small>
+  </div>
+{/if}
 
 <div class="toolbar">
   <button class:on={showZones} title="Airspace boundaries (sovereign + FIR)" onclick={() => (showZones = !showZones)}>Boundaries</button>
@@ -536,6 +557,10 @@
   .livestat .lk { display: flex; align-items: center; gap: 5px; margin-top: 7px; font-size: 10px; color: var(--faint); }
   .livestat .lk i { width: 8px; height: 8px; border-radius: 2px; display: inline-block; margin-left: 4px; } .livestat .lk i:first-child { margin-left: 0; }
   .livestat .vn { font-size: 10.5px; color: var(--faint); margin-top: 6px; max-width: 300px; line-height: 1.45; font-family: var(--font, inherit); } .livestat i { font-style: normal; color: var(--faint); margin: 0 3px; } .livestat .err { color: var(--sov); }
+  .archint { position: absolute; z-index: 6; pointer-events: none; background: rgba(14,14,14,.94); border: 1px solid var(--line2); border-radius: var(--r); padding: 7px 10px 6px; font-size: 12px; line-height: 1.4; color: var(--text); box-shadow: 0 10px 30px rgba(0,0,0,.5); white-space: nowrap; }
+  .archint b { color: var(--ink); font-family: var(--mono); font-weight: 600; } .archint span { color: var(--muted); font-family: var(--mono); font-size: 11px; }
+  .archint .r { font-family: var(--mono); font-size: 11.5px; } .archint i { font-style: normal; color: var(--inf); font-size: 10px; text-transform: uppercase; letter-spacing: 1px; } .archint i.m { color: var(--mil); }
+  .archint small { display: block; color: var(--faint); font-size: 9.5px; letter-spacing: 1.2px; text-transform: uppercase; margin-top: 3px; }
   .livecard { position: absolute; top: 150px; left: 14px; width: 270px; background: rgba(18,18,18,.96); border: 1px solid var(--line2); border-radius: var(--r); padding: 14px 16px; backdrop-filter: blur(6px); animation: lc .2s ease-out; }
   @keyframes lc { from { opacity: 0; transform: translateY(-4px); } }
   .livecard .lh { display: flex; justify-content: space-between; align-items: center; }

@@ -13,14 +13,22 @@ export const settings = $state({
   openrouterModel: read('oam.openrouterModel', 'anthropic/claude-haiku-5.5'),
   profile: read('oam.profile', 'fast'),            // chat: fast (Haiku) by default
   researchProfile: read('oam.researchProfile', 'balanced'),
-  dataUrl: read('oam.dataUrl', import.meta.env.VITE_DATA_URL || 'http://127.0.0.1:8790'),
+  dataUrl: migrate('oam.dataUrl', /\.workers\.dev\//, import.meta.env.VITE_DATA_URL || 'http://127.0.0.1:8790'),
   censusKey: read('oam.censusKey'),
   openskyId: read('oam.openskyId'),
   openskySecret: read('oam.openskySecret'),
   openskyBase: read('oam.openskyBase'),
   // the SADA proxy (oam/server/proxy.sh): live ADSB.lol data and OpenSky, which browsers cannot reach directly
-  proxyBase: read('oam.proxyBase', import.meta.env.VITE_PROXY_BASE || ''),
+  proxyBase: migrate('oam.proxyBase', /sslip\.io/, import.meta.env.VITE_PROXY_BASE || ''),
 });
+// a URL saved before launch pointed at a pre-release host (the keyed workers.dev data route, the sslip.io proxy name);
+// those are gone, so such a saved value is replaced by the current default and stored again
+function migrate(key: string, stale: RegExp, def: string) {
+  const v = read(key, def);
+  if (!stale.test(v) || !def) return v;
+  try { localStorage.setItem(key, def); } catch { /* storage blocked */ }
+  return def;
+}
 
 export function saveSettings() {
   try {
