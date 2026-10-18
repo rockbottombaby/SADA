@@ -2,8 +2,7 @@
 
 **AI-powered research on the flights that carry weapons.**
 
-A free, open-source research tool for journalists and researchers. Ask a question in plain language; SADA's AI searches
-every flight tracked by the ADSB.lol volunteer network since March 2023 (over 120 million), shows its work on a map and
+A free, open-source research tool for journalists and researchers. Ask a question in plain language; SADA's AI searches a record of every flight tracked by the ADSB.lol volunteer network since March 2023 (over 120 million), shows its work on a map and
 gives a source for every figure.
 
 States use large-scale data and AI-assisted analysis to wage war. SADA turns the same kind of capability toward
