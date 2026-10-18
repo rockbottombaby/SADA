@@ -31,7 +31,7 @@ export async function startOpenRouterSignIn() {
   const challenge = b64url(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(verifier)));
   sessionStorage.setItem('or.verifier', verifier);
   const back = `${location.origin}/`;   // OpenRouter appends ?code=… to this
-  location.href = `https://openrouter.ai/auth?callback_url=${encodeURIComponent(back)}&code_challenge=${challenge}&code_challenge_method=S256&key_label=SADA`;
+  location.href = `https://openrouter.ai/auth?callback_url=${encodeURIComponent(back)}&code_challenge=${challenge}&code_challenge_method=S256&key_label=${encodeURIComponent('SADA · ' + location.host)}`;   // one key per browser and site; the label says which
 }
 // On page load: if OpenRouter sent us back with a code, exchange it for the key (and clean the URL). Returns the key or null.
 export async function finishOpenRouterSignIn(): Promise<string | null> {
