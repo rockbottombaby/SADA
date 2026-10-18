@@ -345,7 +345,7 @@ Use the map_* tools to show what your answer is about. Each call REPLACES what i
       <span>Ask the data</span>
       <textarea rows="1" bind:this={composerEl} bind:value={input} placeholder="Ask about flights, countries, aircraft…"
         oninput={e => { const el = e.currentTarget; el.style.height = 'auto'; el.style.height = Math.min(el.scrollHeight, 180) + 'px'; }}
-        onkeydown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); send(); } }}></textarea>
+        onkeydown={e => { if (e.key === 'Enter' && !e.shiftKey && !app.mobile) { e.preventDefault(); send(); } }}></textarea>
       {#if running}<button type="button" class="send stop" title="Stop" aria-label="Stop" onclick={() => abort?.abort()}>■</button>
       {:else}<button class="send" title="Send (Enter)" aria-label="Send" disabled={!input.trim()}>↑</button>{/if}
     </div>
@@ -475,4 +475,11 @@ Use the map_* tools to show what your answer is about. Each call REPLACES what i
   .pill { font-size: 9.5px; padding: 4px 9px; color: var(--muted); border: 1px solid var(--line2); border-radius: var(--r); text-transform: uppercase; letter-spacing: 1.4px; }
   select.pill { padding: 4px 6px; max-width: 46%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; } button.pill.on { color: var(--ink); border-color: var(--ink); }
   .sp { flex: 1; } .cost { color: var(--faint); font-size: 10.5px; font-family: var(--mono); }
+  /* phones: a full-screen panel; everything a finger can hit is at least 40 px */
+  @media (max-width: 760px) {
+    .tab .x { opacity: 1; padding: 0 12px 0 8px; }
+    .msgs { padding: 16px 14px 10px; gap: 18px; }
+    .composer { padding: 10px 12px calc(10px + env(safe-area-inset-bottom, 0px) * 0); }
+    .sug { padding: 14px 2px; }
+  }
 </style>

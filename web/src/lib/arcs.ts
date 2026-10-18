@@ -172,6 +172,9 @@ export class ArcLayer implements CustomLayerInterface {
     this.map?.triggerRepaint();
   }
   hovered(): string | null { return this.hoveredIdx >= 0 ? this.flights[this.hoveredIdx]?.id ?? null : null; }
+  // a tap (touch screens, no hover): what is under this point, reported once the next frame has picked
+  private tapCb: ((hovered: string | null, under: string[]) => void) | null = null;
+  tap(p: [number, number], cb: (hovered: string | null, under: string[]) => void) { this.tapCb = cb; this.pointer(p); }
 
   // ---------- MapLibre hooks ----------
   onAdd(map: MlMap, gl: WebGL2RenderingContext) {
@@ -479,5 +482,11 @@ export class ArcLayer implements CustomLayerInterface {
       else { let bd = Infinity; for (const [i, dd] of parted) if (dd < bd) { bd = dd; hov = i; } }
     }
     this.setHover(hov, bundle);
+    if (this.tapCb) {   // a tap: report what was under it (nearest first), then let go of the lens
+      const cb = this.tapCb; this.tapCb = null;
+      const under = [...ms].sort((a, b) => a.d - b.d).filter(m => m.d <= LENS_R).map(m => this.flights[m.i].id);
+      cb(hov >= 0 ? this.flights[hov].id : null, under);
+      this.pointerPos = null; this.anchor = null; this.setHover(-1, []);
+    }
   }
 }

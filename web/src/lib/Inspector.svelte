@@ -234,4 +234,16 @@
   .err { color: var(--sov); font-size: 12.5px; margin: 14px 0 0; }
   @media (prefers-reduced-motion: reduce) { .sk, .in, .legid.loading { animation: none; } }
   .sp { flex: 1; } .legid { font-size: 10.5px; color: var(--faint); font-family: var(--mono); }
+  /* phones: a bottom sheet, the route stacked, wider touch targets */
+  @media (max-width: 760px) {
+    .scrim { backdrop-filter: none; -webkit-backdrop-filter: none; background: rgba(8,8,8,.7); }
+    .sheet { left: 0; right: 0; top: auto; bottom: 0; transform: none; width: 100%; max-height: calc(100dvh - 44px); border-radius: 14px 14px 0 0; border-bottom: 0; animation: rise .25s cubic-bezier(.2,.8,.2,1); }
+    @keyframes rise { from { transform: translateY(40px); opacity: 0; } }
+    header { padding: 18px 18px 6px; }
+    .route { grid-template-columns: 1fr; gap: 6px; margin: 12px 18px 4px; padding: 14px 0; }
+    .end.r { text-align: left; } .mid { display: none; }
+    .ap { font-size: 24px; }
+    .x { width: 40px; height: 40px; }
+    .nb { grid-template-columns: 1fr 1fr; }
+  }
 </style>

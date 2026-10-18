@@ -57,6 +57,10 @@ export const app = $state({
   aboutOpen: false,                   // the About page over the app (About.svelte); the session underneath is untouched
   coffeeOpen: false,                  // "Buy me a coffee": points to the fundraisers instead (Coffee.svelte)
   aboutSection: '',                   // section to scroll to when it opens (e.g. 'support')
+  // phones: one panel at a time over the map, chosen with the bottom tab bar (App.svelte); set from a media query
+  mobile: false,
+  tab: 'search' as 'search' | 'map' | 'ask',
+  chooser: null as null | string[],   // flights under a tap on the map when several overlap (mobile): leg ids to pick from
 });
 
 // ---------- map scenes ----------

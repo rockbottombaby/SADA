@@ -46,3 +46,13 @@ a { color: var(--ink); text-decoration: none; border-bottom: 1px solid var(--lin
   border: 1px solid var(--line2); border-radius: 3px; color: var(--muted); font-style: normal; white-space: nowrap; }
 
 ::-webkit-scrollbar { width: 8px; height: 8px; } ::-webkit-scrollbar-thumb { background: rgba(232,232,232,.12); border-radius: 4px; } ::-webkit-scrollbar-track { background: transparent; }
+
+/* phones and touch screens */
+@media (max-width: 760px) {
+  html, body, #app { height: 100dvh; }
+  :where(input, select, textarea) { font-size: 16px; }   /* 16 px keeps iOS from zooming into a focused field */
+  .field > input, .field > textarea, .field > select { padding: 14px 14px 12px; }
+}
+@media (hover: none) {
+  :where(button:hover:not(:disabled)) { background: transparent; color: inherit; border-color: var(--line2); }   /* no sticky inverted buttons after a tap */
+}

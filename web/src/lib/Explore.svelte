@@ -32,7 +32,7 @@
     try {
       const args = toArgs(spec);
       [app.dateFrom, app.dateTo] = periodDates(spec.period);
-      const r = await tool('find_flights', { ...args, limit: 3000 }, mine.signal);
+      const r = await tool('find_flights', { ...args, limit: app.mobile ? 1200 : 3000 }, mine.signal);
       if (mine.signal.aborted) return;
       res = r;
       showFlows(res.flights as Leg[], describe(spec), spec.through ? { zone: spec.through.value } : {});
@@ -69,6 +69,7 @@
   function ask() {
     const v = app.explore; if (v.kind !== 'query') return;
     app.chatDraft = `${describe(v.spec)}: what stands out, and what should I look at next? (Search used: find_flights ${JSON.stringify(toArgs(v.spec))})`;
+    if (app.mobile) app.tab = 'ask';
   }
   function exportCsv() {
     const cols = ['leg_id', 'date', 'departed_utc', 'arrived_utc', 'callsigns', 'reg', 'hex', 'type', 'operator', 'mil', 'from_code', 'from_name', 'from_country', 'from_cert',
@@ -164,6 +165,7 @@
       {/if}
 
       <div class="acts">
+        {#if app.mobile}<button class="primary" onclick={() => (app.tab = 'map')} title="See these flights on the map">Map</button>{/if}
         {#if app.explore.kind === 'query'}<button onclick={ask} title="Hand this search to the assistant">Ask the assistant</button>{/if}
         <button onclick={exportCsv} disabled={!res.flights.length} title="Download these flights as CSV, with the data source">Export CSV</button>
         <button onclick={() => home(false)} title="Clear and start a new search">New search</button>
@@ -225,4 +227,10 @@
   .filter { flex: 1; min-width: 0; font-size: 12px; padding: 6px 10px; }
   .list { border-top: 1px solid var(--line); } .more { padding: 12px 4px; color: var(--faint); font-size: 12px; line-height: 1.5; }
   .err { color: var(--sov); font-size: 12.5px; line-height: 1.5; }
+  @media (max-width: 760px) {
+    .home { padding: 18px 16px calc(24px + env(safe-area-inset-bottom, 0px)); }
+    .body { padding: 14px; }
+    .tr { padding: 7px 0; } .period button { padding: 9px 12px; }
+    .acts button { padding: 10px 12px; }
+  }
 </style>

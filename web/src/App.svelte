@@ -28,6 +28,15 @@
   import { setupViews, type Ctx, type ZoneMeta } from './lib/tools';
 
   let manifest = $state<any>(null);
+  // phones and small tablets: the three panels become tabs over a full-screen map; the dock starts folded
+  import { setWin } from './lib/dock.svelte';
+  import { trail } from './lib/trail.svelte';
+  $effect(() => {
+    const mq = matchMedia('(max-width: 760px)');
+    const apply = () => { app.mobile = mq.matches; if (mq.matches) { setWin('research', 'min'); setWin('scene', 'min'); } };
+    apply(); mq.addEventListener('change', apply);
+    return () => mq.removeEventListener('change', apply);
+  });
 
   onMount(async () => {
     try {
@@ -98,7 +107,7 @@
   <div class="hright">
     {#if snack && app.ready}<span class="note" role="status"><i></i>Early beta — some hangs may be expected<button class="x" aria-label="Dismiss" title="Dismiss" onclick={dismissSnack}>✕</button></span>{/if}
     {#if app.status}<span class="status">{app.status}</span>{/if}
-    <button class="mi" onclick={() => (app.coffeeOpen = true)}>Buy me a coffee ☕</button>
+    <button class="mi coffee" onclick={() => (app.coffeeOpen = true)}>Buy me a coffee ☕</button>
     <button class="gear" title="Settings" onclick={() => (app.settingsOpen = true)}>Settings</button>
   </div>
 </header>
@@ -107,11 +116,18 @@
   <div class="err"><h3>Could not load the data</h3><p>{app.error}</p>
     <p class="muted">Is the data server running? Expected <code>{settings.dataUrl}/manifest.json</code>.</p></div>
 {:else}
-  <main>
-    <aside class="left">{#if app.ready}<Explore />{/if}</aside>
+  <main class:mobile={app.mobile}>
+    <aside class="left" class:show={app.tab === 'search'}>{#if app.ready}<Explore />{/if}</aside>
     <div class="stage"><MapView /></div>
-    <aside class="right">{#if app.ready}<Chat />{/if}</aside>
+    <aside class="right" class:show={app.tab === 'ask'}>{#if app.ready}<Chat />{/if}</aside>
   </main>
+  {#if app.mobile && app.ready}
+    <nav class="tabbar" aria-label="Sections">
+      <button class:on={app.tab === 'search'} onclick={() => (app.tab = 'search')}>Search{#if app.explore.kind !== 'home'}<i class="dot"></i>{/if}</button>
+      <button class:on={app.tab === 'map'} onclick={() => (app.tab = 'map')}>Map</button>
+      <button class:on={app.tab === 'ask'} onclick={() => (app.tab = 'ask')}>Ask{#if trail.busy}<i class="dot busy"></i>{/if}</button>
+    </nav>
+  {/if}
 {/if}
 {#if app.ready}<Inspector />{/if}
 <SettingsDialog />
@@ -175,4 +191,23 @@
   .bar { width: 220px; height: 2px; background: rgba(255,255,255,.12); overflow: hidden; }
   .bar i { display: block; height: 100%; background: #fff; transition: width .45s ease; }
   .step { font-size: 10.5px; color: rgba(255,255,255,.5); font-family: var(--mono); letter-spacing: .3px; min-height: 14px; }
+  /* phones: the map fills the screen; Search and Ask are full-screen panels over it, chosen with the tab bar */
+  .tabbar { display: none; }
+  @media (max-width: 760px) {
+    header { height: 50px; display: flex; justify-content: space-between; gap: 10px; padding: 0 12px 0 14px; }
+    .hleft { gap: 14px; flex: 1; } .hright { flex: none; } .menu { margin-left: 0; } .dd, .mi.coffee, .note, .range { display: none; }
+    .brand { font-size: 12px; letter-spacing: 4px; gap: 10px; } .logo { width: 28px; height: 28px; }
+    .hright { gap: 8px; } .gear { padding: 7px 10px; font-size: 10px; }
+    main { display: block; position: relative; height: calc(100dvh - 50px - 54px - env(safe-area-inset-bottom, 0px)); }
+    .stage { position: absolute; inset: 0; min-width: 0; }
+    .left, .right { position: absolute; inset: 0; width: auto; border: 0; display: none; z-index: 5; }
+    .left.show, .right.show { display: flex; }
+    .tabbar { position: fixed; left: 0; right: 0; bottom: 0; z-index: 30; height: calc(54px + env(safe-area-inset-bottom, 0px)); padding-bottom: env(safe-area-inset-bottom, 0px);
+      display: flex; background: var(--bg); border-top: 1px solid var(--line2); }
+    .tabbar button { flex: 1; border: 0; border-radius: 0; padding: 0; font-size: 10.5px; letter-spacing: 2.4px; color: var(--muted); position: relative; display: flex; align-items: center; justify-content: center; gap: 6px; }
+    .tabbar button.on { color: var(--ink); box-shadow: inset 0 2px 0 var(--ink); }
+    .tabbar button:hover { background: transparent; color: var(--muted); } .tabbar button.on:hover { color: var(--ink); }
+    .tabbar .dot { width: 5px; height: 5px; border-radius: 50%; background: var(--ink); } .tabbar .dot.busy { background: var(--obs); animation: pulse 1s ease-in-out infinite; }
+    @keyframes pulse { 50% { opacity: .3; } }
+  }
 </style>

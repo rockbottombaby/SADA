@@ -3,7 +3,7 @@
   import * as maplibregl from 'maplibre-gl';
   import 'maplibre-gl/dist/maplibre-gl.css';
   import workerUrl from 'maplibre-gl/dist/maplibre-gl-worker.mjs?url';
-  import { app, selectLeg, clearScene, sceneBack, sceneForward, zoneName, showFlows, tool } from './state.svelte';
+  import { app, selectLeg, clearScene, sceneBack, sceneForward, zoneName, showFlows, tool, type Leg } from './state.svelte';
   import { live, setLive, toggleWatch, shown, trailOf, loadTraces, kindOf, FILTERS, setFilter, setView, viewNote, type LiveAc } from './live.svelte';
   import { trail, currentTrail, type Pt, type Step } from './trail.svelte';
   import { dock, setWin, winMode, anyMax } from './dock.svelte';
@@ -79,6 +79,8 @@
     if (import.meta.env.DEV) (window as any).__map = map;   // test hook (dev server only)
     map.addControl(new maplibregl.NavigationControl({ visualizePitch: false }), 'top-right');   // the dock owns the bottom edge
     map.addControl(new maplibregl.AttributionControl({ customAttribution: 'ADS-B: ADSB.lol (ODbL) · Natural Earth · OurAirports' }), 'bottom-left');
+    // phones: the attribution starts folded to its ⓘ (it opens on tap); the dock sits above it
+    if (matchMedia('(max-width: 760px)').matches) map.once('load', () => document.querySelector('.maplibregl-ctrl-attrib')?.classList.remove('maplibregl-compact-show'));
     map.on('load', () => {
       map.addSource('zones', { type: 'geojson', data: empty });
       map.addLayer({ id: 'zones-line', type: 'line', source: 'zones', paint: {
@@ -175,7 +177,12 @@
       map.on('mousemove', (e: maplibregl.MapMouseEvent) => { hoverAt = [e.point.x, e.point.y]; arcs.pointer(hoverAt); });
       map.on('mouseout', () => { arcs.pointer(null); hoverId = null; });
       arcs.onHover = id => { hoverId = id; map.getCanvas().style.cursor = id ? 'pointer' : app.map.drawMode ? 'crosshair' : ''; };
-      map.on('click', () => { const id = arcs.hovered(); if (id && !app.map.drawMode) selectLeg(id); });
+      map.on('click', (e: maplibregl.MapMouseEvent) => {
+        if (app.map.drawMode) return;
+        if (!app.mobile) { const id = arcs.hovered(); if (id) selectLeg(id); return; }
+        // a tap: the arc under the finger opens; when several overlap, a short list to pick from
+        arcs.tap([e.point.x, e.point.y], (hov, under) => { if (under.length > 1) app.chooser = under.slice(0, 12); else if (hov) selectLeg(hov); });
+      });
       map.on('click', (e: maplibregl.MapMouseEvent) => {
         if (!app.map.drawMode) return;
         drawPts.push([e.lngLat.lng, e.lngLat.lat]);
@@ -334,17 +341,19 @@
     if (!loaded) return;
     const sel = app.selected?.leg_id;
     const legs = app.map.flows.filter(l => l.from_lat != null && l.to_lat != null);
-    const n = Math.min(legs.length, MAX_FLOWS);
+    const cap = app.mobile ? 1500 : MAX_FLOWS;
+    const n = Math.min(legs.length, cap);
     const op = n > 2000 ? 0.14 : n > 800 ? 0.2 : n > 300 ? 0.28 : n > 80 ? 0.45 : 0.7;   // fade dense sets so structure stays readable
     // drawn by the arc layer (the GeoJSON 'flows' layer stays as the source of the selected flight's surface line)
     const MIL: [number, number, number] = [199 / 255, 166 / 255, 1], INF: [number, number, number] = [143 / 255, 184 / 255, 1], OBS: [number, number, number] = [242 / 255, 193 / 255, 78 / 255];
-    const flights: ArcFlight[] = legs.slice(0, MAX_FLOWS).map(l => ({ id: String(l.leg_id), from: [Number(l.from_lon), Number(l.from_lat)], to: [Number(l.to_lon), Number(l.to_lat)],
+    const flights: ArcFlight[] = legs.slice(0, cap).map(l => ({ id: String(l.leg_id), from: [Number(l.from_lon), Number(l.from_lat)], to: [Number(l.to_lon), Number(l.to_lat)],
       color: l.mil == 1 ? MIL : l.evidence === 'inferred' ? INF : OBS, alpha: op }));
     untrack(() => arcs.setFlights(flights));
     (map.getSource('flows') as maplibregl.GeoJSONSource).setData(empty);
     void sel;
   });
   $effect(() => { if (loaded) arcs.setSelected(app.selected?.leg_id ?? null); });
+  $effect(() => { if (app.inspectorOpen) app.chooser = null; });
   $effect(() => {
     if (!loaded) return;
     const tr = app.track, leg = app.selected;
@@ -482,6 +491,13 @@
 {/if}
 
 {#if app.map.drawMode}<div class="hint">Click two opposite corners of the area on the map</div>{/if}
+{#if app.chooser}
+  {@const legs = app.chooser.map(id => app.map.flows.find(l => String(l.leg_id) === id)).filter(Boolean) as Leg[]}
+  <div class="chooser">
+    <div class="ch"><span class="label">{legs.length} flights here</span><button class="x" aria-label="Close" onclick={() => (app.chooser = null)}>✕</button></div>
+    <div class="cl">{#each legs as l (l.leg_id)}<FlightRow leg={l} />{/each}</div>
+  </div>
+{/if}
 
 <svelte:window onkeydown={onKey} />
 <!-- the dock: two fixed rows along the bottom of the map (research above, the map card below), always present and the
@@ -614,4 +630,19 @@
   .sw { display: inline-block; width: 8px; height: 8px; margin-right: 6px; flex: none; }
   .sw.zone { border: 1.5px solid #ff6b6b; } .sw.flow { background: #f2c14e; } .sw.trk { background: #7fd1ff; } .sw.hl { background: #4b4b4b; border: 1px solid #c8c8c8; } .sw.area { border: 1.5px dashed #e8e8e8; }
   .legend { display: inline-flex; flex-wrap: wrap; gap: 4px 14px; color: var(--faint); font-size: 10.5px; margin-left: auto; padding-left: 14px; border-left: 1px solid var(--line); } .legend i { display: inline-block; width: 12px; height: 2px; margin-right: 6px; vertical-align: middle; } .legend i.dash { background: repeating-linear-gradient(90deg, #dfe6f0 0 3px, transparent 3px 6px); }
+  .chooser { position: absolute; z-index: 8; left: 8px; right: 8px; bottom: 8px; max-height: 55%; display: flex; flex-direction: column; background: rgba(16,16,16,.97); border: 1px solid var(--line2); border-radius: 10px; box-shadow: 0 -10px 40px rgba(0,0,0,.5); }
+  .chooser .ch { display: flex; justify-content: space-between; align-items: center; padding: 10px 6px 6px 14px; } .chooser .label { color: var(--ink); }
+  .chooser .x { width: 36px; height: 36px; padding: 0; border: 0; font-size: 12px; letter-spacing: 0; }
+  .chooser .cl { overflow-y: auto; padding: 0 10px 8px; }
+  /* phones: a compact toolbar, no zoom buttons (pinch), the live card and dock as bottom sheets, no hover label */
+  @media (max-width: 760px) {
+    .toolbar { top: 8px; left: 8px; right: 8px; flex-wrap: wrap; } .toolbar button { flex: 1; padding: 9px 6px; font-size: 9.5px; letter-spacing: 1.2px; }
+    .map :global(.maplibregl-ctrl-top-right) { display: none; }
+    .livestat { top: 54px; left: 8px; right: 8px; } .livestat .vn { max-width: none; }
+    .livecard { top: auto; bottom: 8px; left: 8px; right: 8px; width: auto; z-index: 7; backdrop-filter: none; border-radius: 10px; }
+    .archint { display: none; }
+    .hint { top: 52px; left: 8px; right: 8px; text-align: center; }
+    .dock { left: 8px; right: 8px; bottom: 34px; } .dock.full { top: 52px; }
+    .map :global(.maplibregl-ctrl-bottom-left) { bottom: 2px; }
+  }
 </style>
