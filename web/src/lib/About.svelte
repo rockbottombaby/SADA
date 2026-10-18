@@ -10,10 +10,13 @@
   ] as const;
   let body: HTMLDivElement | undefined = $state();
   let current = $state('mission');
-  const go = (id: string, smooth = true) => { body?.querySelector('#about-' + id)?.scrollIntoView({ behavior: smooth ? 'smooth' : 'auto', block: 'start' }); current = id; };
-  // the sidebar follows the section in view
+  let clickedAt = 0;
+  const go = (id: string, smooth = true) => { clickedAt = Date.now(); current = id; body?.querySelector('#about-' + id)?.scrollIntoView({ behavior: smooth ? 'smooth' : 'auto', block: 'start' }); };
+  // the sidebar follows the section in view (the clicked one stays current while the page scrolls to it; the short
+  // sections at the end cannot reach the top, so at the bottom of the page the last section is current)
   const onScroll = () => {
-    if (!body) return;
+    if (!body || Date.now() - clickedAt < 900) return;
+    if (body.scrollTop + body.clientHeight >= body.scrollHeight - 4) { current = SECTIONS[SECTIONS.length - 1][0]; return; }
     let best = 'mission';
     for (const [id] of SECTIONS) { const el = body.querySelector('#about-' + id) as HTMLElement | null; if (el && el.getBoundingClientRect().top - body.getBoundingClientRect().top < 120) best = id; }
     current = best;
