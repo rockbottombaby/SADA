@@ -7,8 +7,6 @@
       url: 'https://gofund.me/005519d20' },
     { title: 'Gaza Skate Team', by: 'GoFundMe · the skateboarding community in Gaza',
       url: 'https://www.gofundme.com/f/donate-to-the-gaza-skate-team-gm8ut' },
-    { title: 'Save the Raneen family', by: 'Chuffed · a family in Gaza',
-      url: 'https://chuffed.org/project/157829-save-the-raneen-family' },
   ];
 </script>
 
