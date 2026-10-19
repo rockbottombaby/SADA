@@ -464,7 +464,7 @@
   <button title="Clear the map" onclick={resetAll}>Reset</button>
 </div>
 {#if note && app.ready}
-  <div class="betanote" role="status" title="Early beta: some hangs may be expected while the first issues are fixed."><i></i>early beta<button class="x" aria-label="Dismiss" title="Dismiss" onclick={dismissNote}>✕</button></div>
+  <div class="betanote" role="status"><i></i>Early beta — some hangs may be expected<button class="x" aria-label="Dismiss" title="Dismiss" onclick={dismissNote}>✕</button></div>
 {/if}
 
 {#if live.on}
@@ -661,12 +661,12 @@
     .hint { top: 88px; left: 8px; right: 8px; text-align: center; }
     .dock { left: 8px; right: 8px; bottom: 30px; } .dock.full { top: 88px; }   /* a strip under the dock for the ⓘ, like the desktop */
   }
-  /* a quiet tag below the zoom buttons; the tooltip has the longer text */
-  .betanote { position: absolute; z-index: 4; top: 128px; right: 10px; display: inline-flex; align-items: center; gap: 5px; padding: 2px 4px 2px 7px; background: rgba(18,18,18,.7); border: 1px solid var(--line); border-radius: 999px; color: var(--muted); font-size: 9px; letter-spacing: 1.2px; text-transform: uppercase; white-space: nowrap; cursor: default; }
-  .betanote i { width: 5px; height: 5px; border-radius: 50%; background: var(--obs); opacity: .8; flex: none; }
-  .betanote .x { border: 0; background: none; padding: 0 3px; color: var(--faint); font-size: 9px; cursor: pointer; line-height: 1; letter-spacing: 0; }
-  .betanote .x:hover { color: var(--ink); background: none; }
-  @media (max-width: 760px) { .betanote { top: 88px; right: 8px; } }
+  /* the amber beta note: below the zoom buttons on the desktop (nothing else uses that column), centred above the dock on phones */
+  .betanote { position: absolute; z-index: 4; top: 128px; right: 10px; display: inline-flex; align-items: center; gap: 7px; padding: 4px 6px 4px 9px; background: rgba(18,18,18,.85); border: 1px solid rgba(242,193,78,.45); border-radius: 999px; color: var(--obs); font-size: 10px; letter-spacing: .4px; white-space: nowrap; }
+  .betanote i { width: 6px; height: 6px; border-radius: 50%; background: var(--obs); flex: none; }
+  .betanote .x { border: 0; background: none; padding: 0 3px; color: rgba(242,193,78,.7); font-size: 10px; cursor: pointer; line-height: 1; }
+  .betanote .x:hover { color: var(--obs); background: none; }
+  @media (max-width: 760px) { .betanote { top: auto; right: auto; left: 50%; transform: translateX(-50%); bottom: 136px; } }
   /* the ⓘ: a small dark disc at the bottom right, under the dock; its text opens dark too */
   .map :global(.maplibregl-ctrl-bottom-right) { bottom: 3px; right: 4px; }
   .map :global(.maplibregl-ctrl-bottom-right .maplibregl-ctrl) { margin: 0; }
