@@ -56,3 +56,7 @@ a { color: var(--ink); text-decoration: none; border-bottom: 1px solid var(--lin
 @media (hover: none) {
   :where(button:hover:not(:disabled)) { background: transparent; color: inherit; border-color: var(--line2); }   /* no sticky inverted buttons after a tap */
 }
+
+/* controls are not text: no selection highlight or tap flash when they are pressed (answers and lists stay selectable) */
+button, header, nav, img, .label, .toolbar, .dock, .livestat, .tabbar, .maplibregl-ctrl, .maplibregl-canvas-container { -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
+* { -webkit-tap-highlight-color: transparent; }
