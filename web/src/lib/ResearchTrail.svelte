@@ -175,4 +175,5 @@
   .max .list .what { white-space: normal; font-size: 13px; } .max .list .sub { font-size: 12px; }
   .max .list li button { padding: 9px 4px; }
   @media (prefers-reduced-motion: reduce) { .rp, .busy .dot, .spin, .tick.running { animation: none; } }
+  @media (hover: none) { .list li button:hover { background: transparent; } .sum:hover { color: var(--muted); } }
 </style>

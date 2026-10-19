@@ -28,4 +28,5 @@
   button:hover:not(:disabled) { color: var(--ink); background: rgba(232,232,232,.08); }
   button:disabled { opacity: .3; }
   svg { width: 10px; height: 10px; fill: none; stroke: currentColor; stroke-width: 1.2; }
+  @media (hover: none) { button:hover:not(:disabled) { color: inherit; background: transparent; } }
 </style>

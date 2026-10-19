@@ -85,4 +85,5 @@
   .leg:hover { background: rgba(232,232,232,.05); color: inherit; }
   .foot { font-size: 11px; color: var(--faint); margin: 8px 0 0; line-height: 1.5; }
   .err { color: var(--sov); font-size: 12px; }
+  @media (hover: none) { .leg:hover { background: transparent; } }
 </style>

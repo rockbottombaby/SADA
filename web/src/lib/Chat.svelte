@@ -485,4 +485,5 @@ Use the map_* tools to show what your answer is about. Each call REPLACES what i
   }
   .caution { display: flex; align-items: center; gap: 8px; padding: 7px 18px; font-size: 11px; line-height: 1.4; color: var(--obs); border-bottom: 1px solid var(--line); flex: none; }
   .caution i { width: 6px; height: 6px; border-radius: 50%; background: var(--obs); flex: none; }
+  @media (hover: none) { .tab .t:hover { color: inherit; } .sug:hover { color: inherit; } .sug:hover i { transform: none; color: inherit; } .cbar:hover, .sh:hover, .more:hover { color: inherit; } .fl:hover { color: inherit; border-color: var(--line2); } }
 </style>

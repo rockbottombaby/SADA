@@ -37,4 +37,5 @@
   .tag.observed { color: var(--obs); border-color: rgba(242,193,78,.5); }
   .tag.inferred { color: var(--inf); border-color: rgba(143,184,255,.5); border-style: dashed; }
   .tag.mil { color: var(--mil); border-color: rgba(199,166,255,.5); }
+  @media (hover: none) { .row:hover { background: transparent; color: inherit; } }
 </style>

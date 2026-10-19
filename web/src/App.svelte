@@ -226,4 +226,5 @@
     .tabbar .dot { width: 5px; height: 5px; border-radius: 50%; background: var(--ink); } .tabbar .dot.busy { background: var(--obs); animation: pulse 1s ease-in-out infinite; }
     @keyframes pulse { 50% { opacity: .3; } }
   }
+  @media (hover: none) { .mi:hover { color: var(--muted); background: none; } .list button:hover { background: transparent; } }
 </style>

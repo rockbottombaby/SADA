@@ -3,7 +3,7 @@
   import * as maplibregl from 'maplibre-gl';
   import 'maplibre-gl/dist/maplibre-gl.css';
   import workerUrl from 'maplibre-gl/dist/maplibre-gl-worker.mjs?url';
-  import { app, selectLeg, clearScene, sceneBack, sceneForward, zoneName, showFlows, tool, type Leg } from './state.svelte';
+  import { app, selectLeg, clearScene, clearSelection, sceneBack, sceneForward, zoneName, showFlows, tool, type Leg } from './state.svelte';
   import { live, setLive, toggleWatch, shown, trailOf, loadTraces, kindOf, FILTERS, setFilter, setView, viewNote, type LiveAc } from './live.svelte';
   import { trail, currentTrail, type Pt, type Step } from './trail.svelte';
   import { dock, setWin, winMode, anyMax } from './dock.svelte';
@@ -461,7 +461,7 @@
   <button class:on={showNames} title="Country names" onclick={() => (showNames = !showNames)}>Names</button>
   <button class:on={app.map.drawMode} title="Draw a rectangle to find flights through it" onclick={() => { app.map.drawMode = !app.map.drawMode; drawPts = []; }}>Draw area</button>
   <button class="livebtn" class:on={live.on} title="Military aircraft in the air right now (ADSB.lol live), plus aircraft you follow" onclick={() => setLive(!live.on)}><i class="dot"></i>Live</button>
-  <button title="Clear the map" onclick={resetAll}>Reset</button>
+  <button title="Clear the map and return to the start view" onclick={resetAll}>Reset</button>
 </div>
 {#if note && app.ready}
   <div class="betanote" role="status"><i></i>Early beta — some hangs may be expected<button class="x" aria-label="Dismiss" title="Dismiss" onclick={dismissNote}>✕</button></div>
@@ -541,13 +541,13 @@
           </div>
         {/if}
         <WinCtl win="scene" name="map card" canMax={flowsCount > 0} />
-        {#if app.map.scene}<button class="x" title="Clear the map" aria-label="Clear the map" onclick={() => { resetAll(); setWin('scene', 'normal'); }}>✕</button>{/if}
+        {#if app.map.scene}<button class="x" title="Clear what is drawn (the view stays)" aria-label="Clear the map" onclick={() => { clearScene(true); setWin('scene', 'normal'); }}>✕</button>{/if}
       </div>
       {#if sceneMode !== 'min' && app.map.scene && (app.map.focusZone || flowsCount || app.selected || app.map.highlight.length || app.map.area)}
         <div class="items">
           {#if flowsCount}<span class="big"><b>{flowsCount.toLocaleString()}</b> flights{flowsCount > MAX_FLOWS ? ` (${MAX_FLOWS.toLocaleString()} drawn)` : ''}</span>{/if}
           {#if app.map.focusZone}<span><i class="sw zone"></i>{zoneName(app.map.focusZone).replace(/: sovereign airspace \(([^)]*)\)/, ' · sovereign airspace ($1)')}</span>{/if}
-          {#if app.selected}<span><i class="sw trk"></i>Track {String(app.selected.callsigns || app.selected.reg || '').split(' ')[0]}</span>{/if}
+          {#if app.selected}<span><i class="sw trk"></i>Track {String(app.selected.callsigns || app.selected.reg || '').split(' ')[0]}<button class="unsel" title="Deselect this flight (the rest stays)" aria-label="Deselect" onclick={clearSelection}>✕</button></span>{/if}
           {#if app.map.highlight.length}<span><i class="sw hl"></i>{app.map.highlight.join(', ')}</span>{/if}
           {#if app.map.area}<span><i class="sw area"></i>Drawn area</span>{/if}
           {#if flowsCount || app.selected}
@@ -651,7 +651,7 @@
   /* phones: a compact toolbar, no zoom buttons (pinch), the live card and dock as bottom sheets, no hover label */
   @media (max-width: 900px) {
     /* a 3 × 2 grid of equal cells, every label on one line */
-    .toolbar { top: 8px; left: 8px; right: 8px; display: grid; grid-template-columns: repeat(3, 1fr); }
+    .toolbar { top: 8px; left: 8px; right: 8px; max-width: none; display: grid; grid-template-columns: repeat(3, 1fr); }
     .toolbar button { padding: 11px 4px; font-size: 9.5px; letter-spacing: 1.2px; white-space: nowrap; border-left: 1px solid var(--line); display: flex; align-items: center; justify-content: center; gap: 6px; }
     .toolbar button:nth-child(3n + 1) { border-left: 0; } .toolbar button:nth-child(n + 4) { border-top: 1px solid var(--line); }
     .map :global(.maplibregl-ctrl-top-right) { display: none; }
@@ -682,4 +682,6 @@
   .map :global(.maplibregl-ctrl-attrib.maplibregl-compact-show .maplibregl-ctrl-attrib-button) { background-color: transparent; }
   .map :global(.maplibregl-ctrl-attrib-button:focus-visible) { outline: none; }
   .map :global(.maplibregl-ctrl-attrib a) { color: var(--text); border: 0; }
+  @media (hover: none) { .toolbar button:hover { background: transparent; color: var(--muted); } .toolbar button.on:hover { color: var(--ink); } .map :global(.maplibregl-ctrl-group button:hover) { background-color: transparent; } .scene .sum:hover { color: var(--muted); } .livestat .lf button:hover { background: transparent; color: var(--muted); } .livestat .lf button.on:hover { color: var(--ink); background: rgba(232,232,232,.08); } }
+  .unsel { border: 0; padding: 0 4px; margin-left: 6px; font-size: 10px; color: var(--muted); letter-spacing: 0; line-height: 1; vertical-align: middle; } .unsel:hover { color: var(--ink); background: none; }
 </style>

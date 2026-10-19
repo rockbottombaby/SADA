@@ -175,10 +175,13 @@
       </div>
 
       {#if res.per_month.length > 1}
-        <div class="chart" title="Flights per month">
-          {#each res.per_month as m}<div class="col" title="{m.month}: {m.flights} flights"><i style="height: {Math.max(3, (Number(m.flights) / maxMonth) * 100)}%"></i></div>{/each}
+        <div class="chartwrap">
+          <div class="label">Flights per month</div>
+          <div class="chart" class:few={res.per_month.length <= 8}>
+            {#each res.per_month as m}<div class="col" title="{m.month}: {m.flights} flights"><b>{res.per_month.length <= 14 ? Number(m.flights).toLocaleString() : ''}</b><i style="height: {Math.max(2, (Number(m.flights) / maxMonth) * 100)}%"></i><span>{res.per_month.length <= 8 ? m.month.slice(2).replace('-', '/') : ''}</span></div>{/each}
+          </div>
+          {#if res.per_month.length > 8}<div class="axis"><span>{res.per_month[0].month}</span><span>{res.per_month[res.per_month.length - 1].month}</span></div>{/if}
         </div>
-        <div class="axis"><span>{res.per_month[0].month}</span><span>{res.per_month[res.per_month.length - 1].month}</span></div>
       {/if}
 
       {#if res.top_routes.length || res.top_companies.length}
@@ -239,10 +242,16 @@
   .kpis div { padding: 10px 6px 8px; text-align: center; border-left: 1px solid var(--line); } .kpis div:first-child { border-left: 0; }
   .kpis b { display: block; font-size: 17px; font-weight: 500; font-family: var(--mono); letter-spacing: -.5px; }
   .kpis span { font-size: 9px; text-transform: uppercase; letter-spacing: 1.5px; color: var(--muted); }
-  .chart { display: flex; align-items: flex-end; gap: 2px; height: 56px; border-bottom: 1px solid var(--line2); }
-  .col { flex: 1; height: 100%; display: flex; align-items: flex-end; } .col i { display: block; width: 100%; background: var(--ink); opacity: .75; }
+  .chartwrap { display: flex; flex-direction: column; gap: 6px; }
+  .chart { display: flex; align-items: stretch; gap: 2px; height: 72px; }
+  .chart.few { gap: 10px; justify-content: flex-start; }
+  .col { flex: 1; max-width: 44px; display: grid; grid-template-rows: 12px 1fr 12px; row-gap: 3px; min-width: 0; }
+  .chart:not(.few) .col { max-width: none; }
+  .col b { font-size: 9.5px; font-weight: 500; color: var(--muted); font-family: var(--mono); text-align: center; line-height: 12px; white-space: nowrap; overflow: hidden; }
+  .col i { display: block; width: 100%; align-self: end; background: var(--ink); opacity: .7; border-radius: 2px 2px 0 0; }
+  .col span { font-size: 9px; color: var(--faint); font-family: var(--mono); text-align: center; line-height: 12px; border-top: 1px solid var(--line2); white-space: nowrap; }
   .col:hover i { opacity: 1; }
-  .axis { display: flex; justify-content: space-between; font-size: 10px; color: var(--faint); font-family: var(--mono); margin-top: -8px; }
+  .axis { display: flex; justify-content: space-between; font-size: 10px; color: var(--faint); font-family: var(--mono); border-top: 1px solid var(--line2); padding-top: 3px; margin-top: -4px; }
   .tops { display: grid; grid-template-columns: 1fr 1fr; gap: 12px 14px; }
   h4 { margin: 0 0 4px; }
   .tr { display: flex; justify-content: space-between; gap: 6px; width: 100%; border: 0; border-radius: 0; padding: 3px 0; text-transform: none; letter-spacing: 0; font-size: 12px; text-align: left; }
@@ -266,4 +275,5 @@
   .entry i { grid-column: 2; grid-row: 1 / 4; align-self: center; font-style: normal; color: var(--muted); }
   .pinrow { display: grid; grid-template-columns: 1fr auto; align-items: center; } .pinrow .unpin { border: 0; padding: 6px 8px; color: var(--faint); font-size: 11px; letter-spacing: 0; } .pinrow .unpin:hover { color: var(--ink); background: none; }
   .muted b { color: var(--ink); }
+  @media (hover: none) { .entry:hover { background: transparent; border-color: var(--line); } .tr:hover { color: inherit; } .link:hover { color: var(--muted); } }
 </style>

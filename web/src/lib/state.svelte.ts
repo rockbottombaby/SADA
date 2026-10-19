@@ -101,11 +101,13 @@ export function setScene(spec: SceneSpec, meta: SceneMeta, add = false) {
   app.map.histIdx = app.map.history.length - 1;
   if (meta.chat) app.map.chatScenes[meta.chat] = sc;
 }
-export function clearScene() {
+export function clearScene(keepCamera = false) {
   apply({ title: '', by: 'you', zone: null, flows: [], flowsLabel: '', highlight: [], area: null, selected: null, dossier: null, track: null });
   app.map.scene = null;
-  app.map.resetSeq++;
+  if (!keepCamera) app.map.resetSeq++;
 }
+// drop the selected flight and its track, keeping everything else on the map
+export function clearSelection() { app.selected = null; app.dossier = null; app.track = null; app.inspectorOpen = false; }
 export function sceneBack() { if (app.map.histIdx > 0) apply(app.map.history[--app.map.histIdx]); }
 export function sceneForward() { if (app.map.histIdx < app.map.history.length - 1) apply(app.map.history[++app.map.histIdx]); }
 export function restoreChatScene(chat: string) { const sc = app.map.chatScenes[chat]; if (sc) apply(sc); }
