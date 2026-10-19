@@ -668,8 +668,9 @@ export const TOOLS: ToolDef[] = [
         evidence_status: c.evidence_status, delivery_outcome: c.delivery_outcome, source: c.source, source_url: c.source_url, secondary_url: c.secondary_url || undefined,
         operator_response: c.operator_response || undefined, government_response: c.government_response || undefined, notes: c.notes || undefined,
         sada_archive: c.mode === 'air' ? { match: c.sada.match, note: c.sada.note || undefined, flights: c.sada.legs.map(l => `${l.callsign} ${l.reg} ${l.from || '?'}→${l.to || '?'} ${l.date} [${l.leg_id}]`) } : undefined }));
-      return { total: all.length, shown: cases.length, library: { cases: lib.cases.length, built: lib.built_utc, licence: lib.licence, method: lib.method }, cases,
-        note: 'Published claims, not SADA findings; cite the source and its status. sada_archive.match: exact = the reported flight is in the data, nearby = the aircraft/operator seen on the route that day, dark = seen leaving with no recorded destination, none = not found. Leg ids in brackets can be drawn with map_show_flights.' };
+      const flights = all.slice(0, 60).flatMap(c => c.sada.legs.filter(l => l.from_lat != null).map(l => ({ leg_id: l.leg_id, hex: l.hex, callsigns: l.callsign, reg: l.reg, type: l.type, from_code: l.from, to_code: l.to, date: l.date, evidence: l.evidence, t0: l.t0, t1: l.t1, mil: l.mil, from_lat: l.from_lat, from_lon: l.from_lon, to_lat: l.to_lat, to_lon: l.to_lon })));
+      return { total: all.length, shown: cases.length, flights, library: { cases: lib.cases.length, built: lib.built_utc, licence: lib.licence, method: lib.method }, cases,
+        note: 'Published claims, not SADA findings; cite the source and its status. sada_archive.match: exact = the reported flight is in the data, nearby = the aircraft/operator seen on the route that day, dark = seen leaving with no recorded destination, none = not found. Leg ids in brackets can be drawn with map_show_flights. A match corroborates the movement only: the archive never shows cargo, so the documents cited by the source are the only evidence of what was carried.' };
     },
   },
   {

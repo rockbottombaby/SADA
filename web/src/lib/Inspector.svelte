@@ -1,6 +1,6 @@
 <script lang="ts">
   import { md } from './markdown';
-  import { app, selectLeg, closeInspector, fmt, hm, dur, countryName } from './state.svelte';
+  import { app, selectLeg, closeInspector, fmt, hm, dur, countryName, isPinned, togglePin } from './state.svelte';
   import { kvGet, kvSet } from './idb';
   import { runAgent, systemPrompt, RESEARCH_BRIEF, StoppedError, type Citation } from './agent';
   import { settings } from './prefs.svelte';
@@ -9,6 +9,20 @@
   import { loadCases, casesForFlight, STATUS_LABEL, type ShipmentCase } from './cases';
   // documented cases for this flight or this aircraft around its date (the library's claims, with their status)
   let reported = $state<ShipmentCase[]>([]);
+  // one photo of the aircraft (Planespotters.net, through the data server's /photo route), with its credit
+  let photo = $state<{ thumb: string; link: string; photographer: string } | null>(null);
+  $effect(() => {
+    const reg = leg?.reg, hex = leg?.hex; photo = null;
+    if (!reg && !hex) return;
+    const base = settings.dataUrl.replace(/\/v1\/?$/, '');
+    fetch(`${base}/photo/${reg ? 'reg/' + encodeURIComponent(reg) : 'hex/' + hex}`).then(r => r.json()).then(j => { if (leg?.reg === reg && j.photos?.[0]?.thumb) photo = j.photos[0]; }).catch(() => {});
+  });
+  // hand this flight to the assistant in the open chat
+  function ask() {
+    const cs = String(leg.callsigns || '').split(' ')[0] || leg.reg;
+    app.chatDraft = `Flight ${cs}${leg.reg ? ' (' + leg.reg + (leg.type ? ', ' + leg.type : '') + ')' : ''}, ${leg.from_code || '?'} → ${leg.to_code || '?'} on ${leg.date}, flight id ${leg.leg_id}: what stands out about this flight and this aircraft, and what should I check next?`;
+    closeInspector(); if (app.mobile) app.tab = 'ask';
+  }
   $effect(() => { const l = leg; reported = []; if (!l?.leg_id) return; loadCases().then(lib => { if (leg?.leg_id === l.leg_id) reported = casesForFlight(lib, l); }).catch(() => {}); });
 
   let note = $state(''), noteState = $state('');
@@ -70,6 +84,7 @@
       <div class="id in">
         <div class="label">Flight</div>
         <div class="cs">{String(leg.callsigns || '').split(' ').filter(Boolean).join(' · ') || leg.reg || '(no callsign)'}</div>
+        {#if photo}<a class="photo" href={photo.link} target="_blank" rel="noopener noreferrer" title="Photo: {photo.photographer} · Planespotters.net"><img src={photo.thumb} alt="{leg.reg || leg.hex}" /><span>© {photo.photographer}</span></a>{/if}
         <div class="ac">
           {#if leg.reg}<span class="reg">{leg.reg}</span>{/if}
           <span>{leg.desc || leg.type || 'Unknown type'}</span>
@@ -177,6 +192,8 @@
     </div>
 
     <footer>
+      <button class="primary" disabled={loading || !leg} onclick={ask} title="Ask the assistant about this flight in the open chat">Ask the assistant</button>
+      <button class="ghost pin" class:on={leg && isPinned(leg.leg_id)} disabled={loading || !leg} onclick={() => togglePin(leg)} title="Keep this flight on your flights-of-interest board (saved with the session)">{leg && isPinned(leg.leg_id) ? '★ Pinned' : '☆ Pin'}</button>
       <button class="ghost" disabled={loading} onclick={cite}>Copy citation</button>
       <button class="ghost" onclick={() => navigator.clipboard.writeText(location.href)}>Copy link</button>
       <span class="sp"></span>
@@ -265,4 +282,10 @@
   .rc .rd { font-family: var(--mono); color: var(--muted); } .rc .rs { font-size: 9.5px; text-transform: uppercase; letter-spacing: 1.2px; color: var(--obs); justify-self: end; }
   .rc p { grid-column: 1 / 3; margin: 0; line-height: 1.5; } .rc small { grid-column: 1 / 3; color: var(--muted); line-height: 1.45; } .rc a { color: var(--ink); }
   .rep .link { border: 0; padding: 0; background: none; color: var(--ink); text-decoration: underline; text-transform: none; letter-spacing: 0; font-size: inherit; cursor: pointer; }
+  .photo { float: right; margin: 0 0 8px 16px; width: 150px; border-radius: var(--r); overflow: hidden; border: 1px solid var(--line2); text-decoration: none; display: block; }
+  .photo img { display: block; width: 100%; height: 100px; object-fit: cover; }
+  .photo span { display: block; font-size: 9px; color: var(--faint); padding: 3px 6px; letter-spacing: .3px; }
+  .pin.on { color: var(--obs); border-color: rgba(242,193,78,.5); }
+  footer { flex-wrap: wrap; gap: 6px; }
+  @media (max-width: 900px) { .photo { float: none; width: 100%; margin: 6px 0 10px; } .photo img { height: 140px; } }
 </style>

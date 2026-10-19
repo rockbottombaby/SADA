@@ -21,6 +21,23 @@ export default {
     let parts = url.pathname.split('/').slice(1);
     if (env.ACCESS_KEY && parts[0] === env.ACCESS_KEY) parts = parts.slice(1);   // the pre-release keyed URL
     const key = decodeURIComponent(parts.join('/'));
+    // /photo/reg/<registration> or /photo/hex/<icao>: one aircraft photo from Planespotters.net (their public API wants a
+    // server User-Agent with a contact, which a browser cannot send). Cached a day; the response carries the credit.
+    const ph = key.match(/^photo\/(reg|hex)\/([A-Za-z0-9-]{3,10})$/);
+    if (ph) {
+      if (env.RL) { const { success } = await env.RL.limit({ key: req.headers.get('cf-connecting-ip') || 'unknown' }); if (!success) return reply('too many requests', 429); }
+      const cache = caches.default, ck = new Request(`https://photo.cache/${ph[1]}/${ph[2].toUpperCase()}`);
+      const hit = await cache.match(ck);
+      if (hit) return hit;
+      let out = { photos: [] };
+      try {
+        const r = await fetch(`https://api.planespotters.net/pub/photos/${ph[1]}/${ph[1] === 'hex' ? ph[2].toLowerCase() : ph[2].toUpperCase()}`, { headers: { 'User-Agent': 'SADA airwatch/1.0 (+https://sadawatch.com/about/)' } });
+        if (r.ok) { const j = await r.json(); out = { photos: (j.photos || []).slice(0, 1).map(x => ({ id: x.id, thumb: x.thumbnail_large?.src || x.thumbnail?.src, w: x.thumbnail_large?.size?.width, h: x.thumbnail_large?.size?.height, link: x.link, photographer: x.photographer })) }; }
+      } catch { /* no photo */ }
+      const res = reply(JSON.stringify(out), 200, { 'Content-Type': 'application/json', 'Cache-Control': 'public, max-age=86400' });
+      await cache.put(ck, res.clone());
+      return res;
+    }
     if (!PUBLIC.some(p => key === p || key.startsWith(p))) return reply('not found', 404);
     if (env.RL) {
       const { success } = await env.RL.limit({ key: req.headers.get('cf-connecting-ip') || 'unknown' });

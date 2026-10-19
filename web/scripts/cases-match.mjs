@@ -14,7 +14,7 @@ await p.evaluate(() => (window.__oam.app.memorialOpen = false));
 const out = {};
 for (const [id, q] of Object.entries(queries)) {
   if (id.startsWith('_')) continue;
-  const r = await p.evaluate(a => window.__oam.stateApi.tool('find_flights', { ...a, limit: 40 }).then(x => (x.flights || []).map(l => ({ leg_id: l.leg_id, hex: l.hex, callsign: String(l.callsigns || '').split(' ')[0], reg: l.reg || '', type: l.type || '', from: l.from_code || '', to: l.to_code || '', date: l.date, evidence: l.evidence || '' }))).catch(e => ({ err: String(e).slice(0, 160) })), q.args);
+  const r = await p.evaluate(a => window.__oam.stateApi.tool('find_flights', { ...a, limit: 40 }).then(x => (x.flights || []).map(l => ({ leg_id: l.leg_id, hex: l.hex, callsign: String(l.callsigns || '').split(' ')[0], reg: l.reg || '', type: l.type || '', from: l.from_code || '', to: l.to_code || '', date: l.date, evidence: l.evidence || '', t0: l.t0, t1: l.t1, mil: l.mil, from_lat: l.from_lat, from_lon: l.from_lon, to_lat: l.to_lat, to_lon: l.to_lon }))).catch(e => ({ err: String(e).slice(0, 160) })), q.args);
   if (r.err) { console.log(id, 'ERR', r.err); out[id] = { match: 'none', legs: [], error: r.err }; continue; }
   const legs = (q.keep ? r.filter(l => q.keep.includes(l.callsign)) : r).sort((a, b) => a.date.localeCompare(b.date)).slice(0, 8);
   out[id] = { match: legs.length ? q.match : 'none', note: q.note || '', legs };

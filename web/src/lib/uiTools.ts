@@ -91,6 +91,15 @@ export const UI_TOOLS: ToolDef[] = [
     },
   },
   {
+    name: 'pinned_flights',
+    description: 'The flights the user has pinned as "of interest" in this session (from the flight sheet), newest first, with their ids. Use flight_dossier or aircraft_profile on them for detail; map_show_flights with their leg_ids draws them.',
+    input_schema: { type: 'object', properties: {} },
+    async run() {
+      const rows = app.pins.slice().reverse();
+      return { count: rows.length, flights: rows.map(l => ({ leg_id: l.leg_id, hex: l.hex, callsigns: l.callsigns, reg: l.reg, type: l.type, operator: l.operator, mil: l.mil, date: l.date, from_code: l.from_code, to_code: l.to_code, from_lat: l.from_lat, from_lon: l.from_lon, to_lat: l.to_lat, to_lon: l.to_lon, t0: l.t0, t1: l.t1, evidence: (l as any).evidence })), note: rows.length ? undefined : 'Nothing pinned yet; the user pins flights with the pin button in the flight sheet.' };
+    },
+  },
+  {
     name: 'map_reset',
     description: 'Clear the map and return to the world view.',
     input_schema: { type: 'object', properties: {} },

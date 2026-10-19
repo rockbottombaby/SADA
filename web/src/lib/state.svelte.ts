@@ -10,7 +10,8 @@ export type ExploreView =
   | { kind: 'query'; spec: QuerySpec }                // a "Find flights" search
   | { kind: 'area'; ring: [number, number][] }
   | { kind: 'list'; title: string; legs: Leg[] }    // "open in Explore" from a chat card
-  | { kind: 'cases'; q?: string };                  // the documented-shipments library
+  | { kind: 'cases'; q?: string }                   // the documented-shipments library
+  | { kind: 'pins' };                                // flights of interest (pinned)
 
 export const app = $state({
   ctx: null as Ctx | null,
@@ -62,7 +63,10 @@ export const app = $state({
   mobile: false,
   tab: 'map' as 'search' | 'map' | 'ask',
   chooser: null as null | string[],   // flights under a tap on the map when several overlap (mobile): leg ids to pick from
+  pins: [] as Leg[],                  // flights of interest, pinned from the flight sheet; part of the session
 });
+export const isPinned = (id: string) => app.pins.some(p => String(p.leg_id) === String(id));
+export function togglePin(leg: Leg) { const i = app.pins.findIndex(p => String(p.leg_id) === String(leg.leg_id)); if (i >= 0) app.pins.splice(i, 1); else app.pins.push(JSON.parse(JSON.stringify(leg))); }
 
 // ---------- map scenes ----------
 // Everything drawn on the map belongs to one scene. Showing something new REPLACES the scene (no leftovers from earlier

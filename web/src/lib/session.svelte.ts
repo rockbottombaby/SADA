@@ -11,6 +11,7 @@ export interface SessionFile {
   chats: any[];                  // Chat.svelte's chat tabs, as stored
   activeId: string;
   trails: Record<string, Trail>; // research trails by chat id
+  pins?: any[];                  // flights of interest
 }
 
 // Chat.svelte owns the chat tabs; it registers how to read and replace them
@@ -25,7 +26,7 @@ export function buildSession(): SessionFile {
   const ids = new Set(chats.map((c: any) => c.id));
   const trails: Record<string, Trail> = {};
   for (const [id, t] of Object.entries(trail.byChat)) if (ids.has(id)) trails[id] = JSON.parse(JSON.stringify(t));
-  return { sada_session: 1, saved_at: new Date().toISOString(), app: location.origin, chats, activeId, trails };
+  return { sada_session: 1, saved_at: new Date().toISOString(), app: location.origin, chats, activeId, trails, pins: JSON.parse(JSON.stringify(app.pins)) };
 }
 
 export function applySession(f: SessionFile) {
@@ -35,6 +36,7 @@ export function applySession(f: SessionFile) {
   const trails: Record<string, Trail> = {};
   for (const [id, t] of Object.entries(f.trails ?? {})) if (t && Array.isArray((t as Trail).steps)) trails[id] = t as Trail;
   trail.byChat = trails; trail.focus = null; trail.seq++;
+  app.pins = Array.isArray(f.pins) ? f.pins.filter(p => p && p.leg_id) : [];
 }
 
 const stamp = () => { const d = new Date(), p = (n: number) => String(n).padStart(2, '0'); return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}-${p(d.getHours())}${p(d.getMinutes())}`; };
@@ -68,5 +70,6 @@ export function newSession() {
   if (!confirm('Start a new session? The current chats stay in this browser only if you saved them to a file.')) return;
   hooks?.set([], '');
   trail.byChat = {}; trail.focus = null; trail.seq++;
+  app.pins = [];
   session.file = '';
 }

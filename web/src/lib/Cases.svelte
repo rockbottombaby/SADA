@@ -6,6 +6,8 @@
   let lib = $state<CaseLibrary | null>(null), err = $state('');
   let q = $state(app.explore.kind === 'cases' ? app.explore.q ?? '' : ''), country = $state(''), mode = $state(''), only = $state(false);
   loadCases().then(l => (lib = l)).catch(e => (err = String(e)));
+  // opened again with a search (from the flight sheet): take it over
+  $effect(() => { if (app.explore.kind === 'cases' && app.explore.q != null) q = app.explore.q; });
   const shown = $derived(lib ? searchCases(lib, { q, country, mode }).filter(c => !only || ['exact', 'nearby', 'dark'].includes(c.sada.match)) : []);
   const legOf = (l: CaseLeg): Leg => ({ leg_id: l.leg_id, hex: l.hex, t0: Date.parse(l.date) / 1000, t1: Date.parse(l.date) / 1000, callsigns: l.callsign, reg: l.reg, type: l.type, from_code: l.from, to_code: l.to, date: l.date, evidence: l.evidence } as unknown as Leg);
   // draw every matched flight of the shown cases on the map

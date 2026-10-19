@@ -1,7 +1,7 @@
 <script lang="ts">
   // Explore: one "Find flights" question builder in plain language, results with an overview first, then the list.
   // Designed for journalists and researchers, not aviation experts: no codes needed, the period is always chosen by the user.
-  import { app, tool, showFlows, clearScene, countryName, type Leg } from './state.svelte';
+  import { app, tool, showFlows, clearScene, countryName, togglePin, type Leg } from './state.svelte';
   import { builder, blankQuery, PRESETS, periodDates, periodDays, periodLabel, toArgs, describe, isEmpty, type QuerySpec, type Entity } from './query.svelte';
   import EntityField from './EntityField.svelte';
   import FlightRow from './FlightRow.svelte';
@@ -56,7 +56,7 @@
     if (v.kind === 'query') load(v.spec);
     else if (v.kind === 'area') loadArea(v.ring);
     else if (v.kind === 'list') { res = { flights: v.legs, totals: { flights: v.legs.length }, per_month: [], top_routes: [], top_aircraft: [], top_companies: [], top_destination_countries: [], top_origin_countries: [] }; showFlows(v.legs, v.title); }
-    else { res = null; if (v.kind === 'cases') stopSearch(); }
+    else { res = null; if (v.kind === 'cases' || v.kind === 'pins') stopSearch(); }
   });
 
   // refine: click an item in the overview to narrow the search
@@ -125,18 +125,33 @@
       {#if !isEmpty(builder.q)}<button class="link" onclick={() => (builder.q = blankQuery())} title="Empty every field">Clear</button>{/if}
     </div>
     <button class="link lib" onclick={() => (app.explore = { kind: 'cases' })} title="Published reports of weapons movements, with the matching flights">Documented shipments →</button>
+    <button class="link lib" onclick={() => (app.explore = { kind: 'pins' })} title="Flights you pinned from the flight sheet; saved with the session">Flights of interest{#if app.pins.length} ({app.pins.length}){/if} →</button>
   </div>
 {:else}
   <div class="bar">
     <button class="back" onclick={() => home(true)} title="Edit the search">←</button>
     <div class="tt">
-      <div class="label">{app.explore.kind === 'area' ? 'Map area' : app.explore.kind === 'list' ? 'From the assistant' : app.explore.kind === 'cases' ? 'Library' : 'Search'}</div>
-      <span class="title">{app.explore.kind === 'query' ? describe(app.explore.spec) : app.explore.kind === 'list' ? app.explore.title : app.explore.kind === 'cases' ? 'Documented shipments' : `Drawn area, ${periodLabel(q.period)}`}</span>
+      <div class="label">{app.explore.kind === 'area' ? 'Map area' : app.explore.kind === 'list' ? 'From the assistant' : app.explore.kind === 'cases' ? 'Library' : app.explore.kind === 'pins' ? 'Board' : 'Search'}</div>
+      <span class="title">{app.explore.kind === 'query' ? describe(app.explore.spec) : app.explore.kind === 'list' ? app.explore.title : app.explore.kind === 'cases' ? 'Documented shipments' : app.explore.kind === 'pins' ? 'Flights of interest' : `Drawn area, ${periodLabel(q.period)}`}</span>
     </div>
   </div>
   <div class="body">
     {#if app.explore.kind === 'cases'}
       <Cases />
+    {:else if app.explore.kind === 'pins'}
+      {#if !app.pins.length}
+        <p class="muted">Nothing pinned yet. Open a flight and press <b>☆ Pin</b> to keep it here. The board is saved with the session (Session → Save) and the assistant can read it ("my pinned flights").</p>
+      {:else}
+        <div class="acts">
+          <button class="primary" onclick={() => { showFlows(app.pins.slice(), `Flights of interest (${app.pins.length})`); if (app.mobile) app.tab = 'map'; }}>Map all</button>
+          <button onclick={() => { app.chatDraft = `Look at my pinned flights (pinned_flights): what do they have in common, what stands out, and what should I check next?`; if (app.mobile) app.tab = 'ask'; }}>Ask the assistant</button>
+        </div>
+        <div class="list">
+          {#each app.pins.slice().reverse() as l (l.leg_id)}
+            <div class="pinrow"><FlightRow leg={l} /><button class="unpin" title="Remove from the board" onclick={() => togglePin(l)}>✕</button></div>
+          {/each}
+        </div>
+      {/if}
     {:else if busy}
       <div class="loading"><span class="spin"></span>Searching{app.explore.kind === 'query' && periodDays(app.explore.spec.period) > 120 && !app.explore.spec.from && !app.explore.spec.to && !app.explore.spec.through ? ' month by month: an aircraft or company over a long period takes a while' : ''}…</div>
       <div class="acts"><button onclick={() => home(false)} title="Clear and start a new search">New search</button></div>
@@ -238,4 +253,6 @@
     .acts button { padding: 10px 12px; }
   }
   .lib { margin-top: 10px; color: var(--ink); }
+  .pinrow { display: grid; grid-template-columns: 1fr auto; align-items: center; } .pinrow .unpin { border: 0; padding: 6px 8px; color: var(--faint); font-size: 11px; letter-spacing: 0; } .pinrow .unpin:hover { color: var(--ink); background: none; }
+  .muted b { color: var(--ink); }
 </style>

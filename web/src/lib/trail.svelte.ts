@@ -66,7 +66,7 @@ function vizFor(name: string, a: any, r: any): { viz: Viz; detail?: string } {
       const t = r?.totals;
       return { viz: { zones: [z], arcs: arcs.slice(0, 16) }, detail: t ? `${Number(t.flights).toLocaleString()} flights · ${Number(t.observed).toLocaleString()} observed · ${Number(t.military).toLocaleString()} military` : undefined };
     }
-    case 'flights_through_zone': case 'find_flights': case 'route_search': case 'aircraft_history': case 'search_flights': case 'flights_through_area': {
+    case 'flights_through_zone': case 'find_flights': case 'route_search': case 'aircraft_history': case 'search_flights': case 'flights_through_area': case 'known_cases': case 'pinned_flights': {
       const rows = Array.isArray(r) ? r : r?.flights ?? [];
       return { viz: { zones: z ? [z] : undefined, legs: legsOf(rows) }, detail: `${(r?.totals?.flights ?? rows.length).toLocaleString?.() ?? rows.length} flights` };
     }

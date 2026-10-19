@@ -1,7 +1,7 @@
 // The documented-shipments library (public/cases.json, built by scripts/cases-build.mjs from oam/cases/): published
 // reports and official statements about weapons movements, with what the SADA archive shows for each. Read by the
 // Explore panel, the flight sheet and the assistant's known_cases tool. The claims are the sources', never SADA findings.
-export interface CaseLeg { leg_id: string; hex: string; callsign: string; reg: string; type: string; from: string; to: string; date: string; evidence: string }
+export interface CaseLeg { leg_id: string; hex: string; callsign: string; reg: string; type: string; from: string; to: string; date: string; evidence: string; t0?: number; t1?: number; mil?: number; from_lat?: number; from_lon?: number; to_lat?: number; to_lon?: number }
 export interface ShipmentCase {
   id: string; country: string; date: string; date_precision: string; event_type: string; mode: string; vehicle: string; operator: string;
   origin: string; transit: string; destination: string; cargo: string; quantity: string; unit: string; evidence_status: string; delivery_outcome: string;
