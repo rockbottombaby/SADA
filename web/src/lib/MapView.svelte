@@ -28,8 +28,9 @@
   const phone = matchMedia('(max-width: 760px)').matches;
   let showNames = $state(!phone);   // country names: off on phones, where they crowd the small globe
   // the early-beta note, inside the map so it never pushes the controls; dismissed once per browser
-  let note = $state((() => { try { return !localStorage.getItem('sada.notice1'); } catch { return true; } })());
-  const dismissNote = () => { note = false; try { localStorage.setItem('sada.notice1', '1'); } catch { /* storage blocked */ } };
+  // dismissed with its ✕, it stays away for a week, then shows again while the beta lasts
+  let note = $state((() => { try { return Date.now() - Number(localStorage.getItem('sada.notice1') || 0) > 7 * 86400e3; } catch { return true; } })());
+  const dismissNote = () => { note = false; try { localStorage.setItem('sada.notice1', String(Date.now())); } catch { /* storage blocked */ } };
   // the whole planet on the screen (phones): the globe's diameter is 512·2^z/π px
   const fitZoom = () => Math.log2(Math.min(el.clientWidth, el.clientHeight) * Math.PI / 512) - 0.14;
   const home = () => (phone ? { center: [-15, 30] as [number, number], zoom: fitZoom() } : { center: [-15, 55] as [number, number], zoom: 1.7 });
