@@ -26,5 +26,5 @@
   h3 { margin: 0 0 4px; font-size: 18px; font-weight: 600; color: var(--ink); }
   p { margin: 0; font-size: 14px; color: var(--text); }
   .row { display: flex; justify-content: flex-end; margin-top: 16px; }
-  @media (max-width: 760px) { .dialog { width: calc(100vw - 16px); max-height: calc(100dvh - 24px); padding: 18px 16px; } }
+  @media (max-width: 900px) { .dialog { width: calc(100vw - 16px); max-height: calc(100dvh - 24px); padding: 18px 16px; } }
 </style>

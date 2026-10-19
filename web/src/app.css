@@ -48,7 +48,7 @@ a { color: var(--ink); text-decoration: none; border-bottom: 1px solid var(--lin
 ::-webkit-scrollbar { width: 8px; height: 8px; } ::-webkit-scrollbar-thumb { background: rgba(232,232,232,.12); border-radius: 4px; } ::-webkit-scrollbar-track { background: transparent; }
 
 /* phones and touch screens */
-@media (max-width: 760px) {
+@media (max-width: 900px) {
   html, body, #app { height: 100dvh; }
   :where(input, select, textarea) { font-size: 16px; }   /* 16 px keeps iOS from zooming into a focused field */
   .field > input, .field > textarea, .field > select { padding: 14px 14px 12px; }

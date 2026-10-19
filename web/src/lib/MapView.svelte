@@ -25,7 +25,7 @@
   let loaded = $state(false);
   let drawPts: [number, number][] = [];
   let showZones = $state(true);
-  const phone = matchMedia('(max-width: 760px)').matches;
+  const phone = matchMedia('(max-width: 900px)').matches;
   let showNames = $state(!phone);   // country names: off on phones, where they crowd the small globe
   // the early-beta note, inside the map so it never pushes the controls; dismissed once per browser
   // dismissed with its ✕, it stays away for a week, then shows again while the beta lasts
@@ -571,7 +571,7 @@
 
 <style>
   .map { position: absolute; inset: 0; }
-  .toolbar { position: absolute; top: 14px; left: 14px; display: flex; background: rgba(18,18,18,.92); border: 1px solid var(--line2); border-radius: var(--r); overflow: hidden; backdrop-filter: blur(6px); }
+  .toolbar { position: absolute; top: 14px; left: 14px; max-width: calc(100% - 80px); display: flex; flex-wrap: wrap; background: rgba(18,18,18,.92); border: 1px solid var(--line2); border-radius: var(--r); overflow: hidden; backdrop-filter: blur(6px); }
   .toolbar button { border: 0; border-left: 1px solid var(--line); border-radius: 0; font-size: 9.5px; padding: 8px 12px; color: var(--muted); }
   .toolbar button:first-child { border-left: 0; }
   .livebtn { display: inline-flex; align-items: center; gap: 6px; }
@@ -649,7 +649,7 @@
   .chooser .x { width: 36px; height: 36px; padding: 0; border: 0; font-size: 12px; letter-spacing: 0; }
   .chooser .cl { overflow-y: auto; padding: 0 10px 8px; }
   /* phones: a compact toolbar, no zoom buttons (pinch), the live card and dock as bottom sheets, no hover label */
-  @media (max-width: 760px) {
+  @media (max-width: 900px) {
     /* a 3 × 2 grid of equal cells, every label on one line */
     .toolbar { top: 8px; left: 8px; right: 8px; display: grid; grid-template-columns: repeat(3, 1fr); }
     .toolbar button { padding: 11px 4px; font-size: 9.5px; letter-spacing: 1.2px; white-space: nowrap; border-left: 1px solid var(--line); display: flex; align-items: center; justify-content: center; gap: 6px; }
@@ -662,11 +662,14 @@
     .dock { left: 8px; right: 8px; bottom: 30px; } .dock.full { top: 88px; }   /* a strip under the dock for the ⓘ, like the desktop */
   }
   /* the amber beta note: below the zoom buttons on the desktop (nothing else uses that column), centred above the dock on phones */
-  .betanote { position: absolute; z-index: 4; top: 128px; right: 10px; display: inline-flex; align-items: center; gap: 7px; padding: 4px 6px 4px 9px; background: rgba(18,18,18,.85); border: 1px solid rgba(242,193,78,.45); border-radius: 999px; color: var(--obs); font-size: 10px; letter-spacing: .4px; white-space: nowrap; }
+  .betanote { position: absolute; z-index: 4; bottom: 4px; right: 36px; display: inline-flex; align-items: center; gap: 7px; padding: 4px 6px 4px 9px; background: rgba(18,18,18,.85); border: 1px solid rgba(242,193,78,.45); border-radius: 999px; color: var(--obs); font-size: 10px; letter-spacing: .4px; white-space: nowrap; }
   .betanote i { width: 6px; height: 6px; border-radius: 50%; background: var(--obs); flex: none; }
   .betanote .x { border: 0; background: none; padding: 0 3px; color: rgba(242,193,78,.7); font-size: 10px; cursor: pointer; line-height: 1; }
   .betanote .x:hover { color: var(--obs); background: none; }
-  @media (max-width: 760px) { .betanote { top: auto; right: auto; left: 50%; transform: translateX(-50%); bottom: 136px; } }
+  @media (max-width: 900px) { .betanote { top: auto; right: auto; left: 50%; transform: translateX(-50%); bottom: 136px; } }
+  /* small laptops and tablets: tighter toolbar buttons (one row up to ~1280 px); where it still wraps, the live strip moves below it */
+  @media (min-width: 901px) and (max-width: 1400px) { .toolbar button { padding: 8px 9px; letter-spacing: 1.3px; } }
+  @media (min-width: 901px) and (max-width: 1200px) { .livestat { top: 92px; } .hint { top: 96px; } }
   /* the ⓘ: a small dark disc at the bottom right, under the dock; its text opens dark too */
   .map :global(.maplibregl-ctrl-bottom-right) { bottom: 3px; right: 4px; }
   .map :global(.maplibregl-ctrl-bottom-right .maplibregl-ctrl) { margin: 0; }

@@ -130,5 +130,5 @@
   .ghost { font-size: 9.5px; }
   .safe { color: var(--faint); font-size: 11.5px; line-height: 1.55; margin: 18px 0 0; padding-top: 12px; border-top: 1px solid var(--line); }
   @media (prefers-reduced-motion: reduce) { .backdrop, .dialog { animation: none; } }
-  @media (max-width: 760px) { .dialog { width: calc(100vw - 16px); max-height: calc(100dvh - 24px); padding: 18px 16px; } }
+  @media (max-width: 900px) { .dialog { width: calc(100vw - 16px); max-height: calc(100dvh - 24px); padding: 18px 16px; } }
 </style>

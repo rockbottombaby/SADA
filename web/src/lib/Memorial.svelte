@@ -57,7 +57,7 @@
   @keyframes fade { from { opacity: 0; } }
   @keyframes rise { from { opacity: 0; transform: translateY(14px); } }
   /* phones: a compact card that fits the screen; the portrait is a short band above the text, the button always in reach */
-  @media (max-width: 760px) {
+  @media (max-width: 900px) {
     .wrap { padding: 12px; align-items: center; }
     .card { grid-template-columns: 1fr; width: 100%; max-height: calc(100dvh - 24px); overflow-y: auto; border-radius: 10px; }
     .portrait { min-height: 0; height: 150px; border-radius: 10px 10px 0 0; clip-path: none; overflow: hidden; flex: none; }

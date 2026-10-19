@@ -132,5 +132,5 @@
   .perf td { padding: 4px 6px 4px 0; border-top: 1px solid var(--line); font-family: var(--mono); } .perf td:first-child { font-family: inherit; }
   .link { border: 0; padding: 0; background: none; color: var(--ink); text-decoration: underline; text-transform: none; letter-spacing: 0; font-size: 11.5px; cursor: pointer; }
   .row { display: flex; justify-content: flex-end; gap: 8px; margin-top: 10px; }
-  @media (max-width: 760px) { .dialog { width: calc(100vw - 16px); max-height: calc(100dvh - 24px); padding: 18px 16px; } }
+  @media (max-width: 900px) { .dialog { width: calc(100vw - 16px); max-height: calc(100dvh - 24px); padding: 18px 16px; } }
 </style>

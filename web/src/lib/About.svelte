@@ -162,5 +162,5 @@
   .mem { display: grid; grid-template-columns: 120px 1fr; gap: 22px; align-items: center; }
   .mem img { border-radius: var(--r); border: 1px solid var(--line2); display: block; object-fit: cover; }
   footer { margin-top: 36px; font-size: 12px; color: var(--faint); } footer a { color: var(--muted); }
-  @media (max-width: 760px) { .cols { grid-template-columns: 1fr; } nav { display: none; } article { padding: 24px 16px 60px; } h1 { font-size: 26px; } .mem { grid-template-columns: 1fr; } }
+  @media (max-width: 900px) { .cols { grid-template-columns: 1fr; } nav { display: none; } article { padding: 24px 16px 60px; } h1 { font-size: 26px; } .mem { grid-template-columns: 1fr; } }
 </style>

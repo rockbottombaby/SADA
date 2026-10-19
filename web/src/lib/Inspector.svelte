@@ -235,7 +235,7 @@
   @media (prefers-reduced-motion: reduce) { .sk, .in, .legid.loading { animation: none; } }
   .sp { flex: 1; } .legid { font-size: 10.5px; color: var(--faint); font-family: var(--mono); }
   /* phones: a bottom sheet, the route stacked, wider touch targets */
-  @media (max-width: 760px) {
+  @media (max-width: 900px) {
     .scrim { backdrop-filter: none; -webkit-backdrop-filter: none; background: rgba(8,8,8,.7); }
     .sheet { left: 0; right: 0; top: auto; bottom: 0; transform: none; width: 100%; max-height: calc(100dvh - 44px); border-radius: 14px 14px 0 0; border-bottom: 0; animation: rise .25s cubic-bezier(.2,.8,.2,1); }
     @keyframes rise { from { transform: translateY(40px); opacity: 0; } }

@@ -29,7 +29,7 @@
   import { setWin } from './lib/dock.svelte';
   import { trail } from './lib/trail.svelte';
   $effect(() => {
-    const mq = matchMedia('(max-width: 760px)');
+    const mq = matchMedia('(max-width: 900px)');
     const apply = () => { app.mobile = mq.matches; if (mq.matches) { setWin('research', 'min'); setWin('scene', 'min'); } };
     apply(); mq.addEventListener('change', apply);
     return () => mq.removeEventListener('change', apply);
@@ -199,7 +199,13 @@
   .step { font-size: 10.5px; color: rgba(255,255,255,.5); font-family: var(--mono); letter-spacing: .3px; min-height: 14px; }
   /* phones: the map fills the screen; Search and Ask are full-screen panels over it, chosen with the tab bar */
   .tabbar { display: none; }
-  @media (max-width: 760px) {
+  /* small laptops and landscape tablets: narrower side columns, a lighter header, so the map keeps room */
+  @media (min-width: 901px) and (max-width: 1200px) {
+    .left { width: 290px; } .right { width: 340px; }
+    header { gap: 14px; } .hleft { gap: 14px; } .range .count { font-size: 10.5px; } .mi.coffee { display: none; }
+  }
+  @media (min-width: 901px) and (max-width: 1040px) { .range { display: none; } }
+  @media (max-width: 900px) {
     header { height: 50px; display: flex; justify-content: space-between; gap: 10px; padding: 0 12px 0 14px; }
     .hleft { gap: 14px; flex: 1; } .hright { flex: none; } .menu, .mi.coffee, .range { display: none; }
     .more { display: block; position: relative; }

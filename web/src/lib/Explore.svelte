@@ -227,7 +227,7 @@
   .filter { flex: 1; min-width: 0; font-size: 12px; padding: 6px 10px; }
   .list { border-top: 1px solid var(--line); } .more { padding: 12px 4px; color: var(--faint); font-size: 12px; line-height: 1.5; }
   .err { color: var(--sov); font-size: 12.5px; line-height: 1.5; }
-  @media (max-width: 760px) {
+  @media (max-width: 900px) {
     .home { padding: 18px 16px calc(24px + env(safe-area-inset-bottom, 0px)); }
     .body { padding: 14px; }
     .tr { padding: 7px 0; } .period button { padding: 9px 12px; }

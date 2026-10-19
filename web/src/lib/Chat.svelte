@@ -477,7 +477,7 @@ Use the map_* tools to show what your answer is about. Each call REPLACES what i
   select.pill { padding: 4px 6px; max-width: 46%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; } button.pill.on { color: var(--ink); border-color: var(--ink); }
   .sp { flex: 1; } .cost { color: var(--faint); font-size: 10.5px; font-family: var(--mono); }
   /* phones: a full-screen panel; everything a finger can hit is at least 40 px */
-  @media (max-width: 760px) {
+  @media (max-width: 900px) {
     .tab .x { opacity: 1; padding: 0 12px 0 8px; }
     .msgs { padding: 16px 14px 10px; gap: 18px; }
     .composer { padding: 10px 12px calc(10px + env(safe-area-inset-bottom, 0px) * 0); }
