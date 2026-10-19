@@ -249,6 +249,7 @@ Use the map_* tools to show what your answer is about. Each call REPLACES what i
       {/if}
     </div>
   {/if}
+  <div class="caution" role="note"><i></i>Don’t rely on the AI: models hallucinate, the data doesn’t. Be the brains of the operation.</div>
   <div class="msgs" bind:this={scroller}>
     {#if !active.turns.length}
       <div class="intro">
@@ -482,4 +483,6 @@ Use the map_* tools to show what your answer is about. Each call REPLACES what i
     .composer { padding: 10px 12px calc(10px + env(safe-area-inset-bottom, 0px) * 0); }
     .sug { padding: 14px 2px; }
   }
+  .caution { display: flex; align-items: center; gap: 8px; padding: 7px 18px; font-size: 11px; line-height: 1.4; color: var(--obs); border-bottom: 1px solid var(--line); flex: none; }
+  .caution i { width: 6px; height: 6px; border-radius: 50%; background: var(--obs); flex: none; }
 </style>
