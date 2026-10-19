@@ -1,0 +1,556 @@
+{
+ "matched_utc": "2026-10-19T14:33Z",
+ "cases": {
+  "SADA-0012": {
+   "match": "dark",
+   "note": "Seen arriving at and leaving Dover AFB on 10 Oct; the onward leg has no recorded destination.",
+   "legs": [
+    {
+     "leg_id": "738c06-1696862079",
+     "hex": "738c06",
+     "callsign": "YDN100",
+     "reg": "4X-ICA",
+     "type": "B744",
+     "from": "",
+     "to": "KDOV",
+     "date": "2023-10-09",
+     "evidence": ""
+    },
+    {
+     "leg_id": "738c06-1696930353",
+     "hex": "738c06",
+     "callsign": "YDN100",
+     "reg": "4X-ICA",
+     "type": "B744",
+     "from": "KDOV",
+     "to": "",
+     "date": "2023-10-10",
+     "evidence": ""
+    }
+   ]
+  },
+  "SADA-0014": {
+   "match": "nearby",
+   "note": "The El Al Los Angeles flight that day; the specific flight is not named in the report.",
+   "legs": [
+    {
+     "leg_id": "7380c3-1698172749",
+     "hex": "7380c3",
+     "callsign": "ELY006",
+     "reg": "4X-EDD",
+     "type": "B789",
+     "from": "KLAX",
+     "to": "",
+     "date": "2023-10-24",
+     "evidence": ""
+    }
+   ]
+  },
+  "SADA-0015": {
+   "match": "exact",
+   "note": "JFK to Liège on 29 Oct, Liège to Tel Aviv on 30 Oct: the reported route.",
+   "legs": [
+    {
+     "leg_id": "448465-1698602894",
+     "hex": "448465",
+     "callsign": "CHG542",
+     "reg": "OO-ACE",
+     "type": "B744",
+     "from": "KJFK",
+     "to": "EBLG",
+     "date": "2023-10-29",
+     "evidence": ""
+    },
+    {
+     "leg_id": "448465-1698657591",
+     "hex": "448465",
+     "callsign": "CHG502",
+     "reg": "OO-ACE",
+     "type": "B744",
+     "from": "EBLG",
+     "to": "LLBG",
+     "date": "2023-10-30",
+     "evidence": ""
+    }
+   ]
+  },
+  "SADA-0016": {
+   "match": "exact",
+   "note": "",
+   "legs": [
+    {
+     "leg_id": "448465-1700850325",
+     "hex": "448465",
+     "callsign": "CHG552",
+     "reg": "OO-ACE",
+     "type": "B744",
+     "from": "KJFK",
+     "to": "EBLG",
+     "date": "2023-11-24",
+     "evidence": ""
+    },
+    {
+     "leg_id": "448465-1700906292",
+     "hex": "448465",
+     "callsign": "CHG504",
+     "reg": "OO-ACE",
+     "type": "B744",
+     "from": "EBLG",
+     "to": "",
+     "date": "2023-11-25",
+     "evidence": ""
+    }
+   ]
+  },
+  "SADA-0019": {
+   "match": "dark",
+   "note": "JFK to Dover, then out of Dover under a changed callsign with no recorded destination.",
+   "legs": [
+    {
+     "leg_id": "738c06-1705328441",
+     "hex": "738c06",
+     "callsign": "YSM275",
+     "reg": "4X-ICA",
+     "type": "B744",
+     "from": "KDOV",
+     "to": "",
+     "date": "2024-01-15",
+     "evidence": ""
+    },
+    {
+     "leg_id": "738c06-1705300288",
+     "hex": "738c06",
+     "callsign": "YSM275",
+     "reg": "4X-ICA",
+     "type": "B744",
+     "from": "KJFK",
+     "to": "KDOV",
+     "date": "2024-01-15",
+     "evidence": ""
+    }
+   ]
+  },
+  "SADA-0020": {
+   "match": "dark",
+   "note": "JFK to Dover, then out of Dover under a changed callsign; the recorded destination (Cairo) is an estimate across a coverage gap.",
+   "legs": [
+    {
+     "leg_id": "738c06-1705928068",
+     "hex": "738c06",
+     "callsign": "VRM146",
+     "reg": "4X-ICA",
+     "type": "B744",
+     "from": "KDOV",
+     "to": "HECA",
+     "date": "2024-01-22",
+     "evidence": ""
+    },
+    {
+     "leg_id": "738c06-1705907226",
+     "hex": "738c06",
+     "callsign": "VRM146",
+     "reg": "4X-ICA",
+     "type": "B744",
+     "from": "KJFK",
+     "to": "KDOV",
+     "date": "2024-01-22",
+     "evidence": ""
+    }
+   ]
+  },
+  "SADA-0021": {
+   "match": "exact",
+   "note": "",
+   "legs": [
+    {
+     "leg_id": "448465-1706817788",
+     "hex": "448465",
+     "callsign": "CHG592",
+     "reg": "OO-ACE",
+     "type": "B744",
+     "from": "KJFK",
+     "to": "EBLG",
+     "date": "2024-02-01",
+     "evidence": ""
+    }
+   ]
+  },
+  "SADA-0022": {
+   "match": "exact",
+   "note": "",
+   "legs": [
+    {
+     "leg_id": "440ce0-1706904288",
+     "hex": "440ce0",
+     "callsign": "CHG552",
+     "reg": "OE-LRG",
+     "type": "B744",
+     "from": "KJFK",
+     "to": "EBLG",
+     "date": "2024-02-02",
+     "evidence": ""
+    },
+    {
+     "leg_id": "440ce0-1706941497",
+     "hex": "440ce0",
+     "callsign": "CHG572",
+     "reg": "OE-LRG",
+     "type": "B744",
+     "from": "EBLG",
+     "to": "LLBG",
+     "date": "2024-02-03",
+     "evidence": ""
+    }
+   ]
+  },
+  "SADA-0023": {
+   "match": "exact",
+   "note": "",
+   "legs": [
+    {
+     "leg_id": "448465-1707677529",
+     "hex": "448465",
+     "callsign": "CHG542",
+     "reg": "OO-ACE",
+     "type": "B744",
+     "from": "KJFK",
+     "to": "",
+     "date": "2024-02-11",
+     "evidence": ""
+    },
+    {
+     "leg_id": "448465-1707748496",
+     "hex": "448465",
+     "callsign": "CHG504",
+     "reg": "OO-ACE",
+     "type": "B744",
+     "from": "",
+     "to": "LLBG",
+     "date": "2024-02-12",
+     "evidence": ""
+    }
+   ]
+  },
+  "SADA-0024": {
+   "match": "exact",
+   "note": "Departed JFK late on 18 Feb local time; recorded on 19 Feb UTC.",
+   "legs": [
+    {
+     "leg_id": "448466-1708307737",
+     "hex": "448466",
+     "callsign": "CHG542",
+     "reg": "OO-ACF",
+     "type": "B744",
+     "from": "KJFK",
+     "to": "EBLG",
+     "date": "2024-02-19",
+     "evidence": ""
+    }
+   ]
+  },
+  "SADA-0025": {
+   "match": "nearby",
+   "note": "The Liège to Tel Aviv leg that day; the transatlantic leg was not matched.",
+   "legs": [
+    {
+     "leg_id": "448466-1709019490",
+     "hex": "448466",
+     "callsign": "ICL902",
+     "reg": "OO-ACF",
+     "type": "B744",
+     "from": "EBLG",
+     "to": "LLBG",
+     "date": "2024-02-27",
+     "evidence": ""
+    }
+   ]
+  },
+  "SADA-0026": {
+   "match": "dark",
+   "note": "",
+   "legs": [
+    {
+     "leg_id": "738c06-1710533326",
+     "hex": "738c06",
+     "callsign": "CEI934",
+     "reg": "4X-ICA",
+     "type": "B744",
+     "from": "KJFK",
+     "to": "KDOV",
+     "date": "2024-03-15",
+     "evidence": ""
+    },
+    {
+     "leg_id": "738c06-1710592392",
+     "hex": "738c06",
+     "callsign": "CEI934",
+     "reg": "4X-ICA",
+     "type": "B744",
+     "from": "KDOV",
+     "to": "",
+     "date": "2024-03-16",
+     "evidence": ""
+    }
+   ]
+  },
+  "SADA-0027": {
+   "match": "exact",
+   "note": "",
+   "legs": [
+    {
+     "leg_id": "448465-1710879229",
+     "hex": "448465",
+     "callsign": "CHG522",
+     "reg": "OO-ACE",
+     "type": "B744",
+     "from": "KJFK",
+     "to": "EBLG",
+     "date": "2024-03-19",
+     "evidence": ""
+    }
+   ]
+  },
+  "SADA-0030": {
+   "match": "nearby",
+   "note": "No Challenge JFK to Liège flight on 1 May in the data; the nearest is 2 May. The reported date may be the document date.",
+   "legs": [
+    {
+     "leg_id": "448465-1714620304",
+     "hex": "448465",
+     "callsign": "CHG532",
+     "reg": "OO-ACE",
+     "type": "B744",
+     "from": "KJFK",
+     "to": "EBLG",
+     "date": "2024-05-02",
+     "evidence": ""
+    }
+   ]
+  },
+  "SADA-0031": {
+   "match": "exact",
+   "note": "The Liège to Tel Aviv leg.",
+   "legs": [
+    {
+     "leg_id": "738c06-1715138887",
+     "hex": "738c06",
+     "callsign": "ICL908",
+     "reg": "4X-ICA",
+     "type": "B744",
+     "from": "EBLG",
+     "to": "LLBG",
+     "date": "2024-05-08",
+     "evidence": ""
+    }
+   ]
+  },
+  "SADA-0032": {
+   "match": "nearby",
+   "note": "El Al's JFK flights that day; the report does not name the flight.",
+   "legs": [
+    {
+     "leg_id": "7380c4-1715640360",
+     "hex": "7380c4",
+     "callsign": "ELY002",
+     "reg": "4X-EDE",
+     "type": "B789",
+     "from": "KJFK",
+     "to": "LLBG",
+     "date": "2024-05-13",
+     "evidence": ""
+    },
+    {
+     "leg_id": "7380c3-1715625885",
+     "hex": "7380c3",
+     "callsign": "ELY010",
+     "reg": "4X-EDD",
+     "type": "B789",
+     "from": "KJFK",
+     "to": "LLBG",
+     "date": "2024-05-13",
+     "evidence": ""
+    },
+    {
+     "leg_id": "7380c9-1715620023",
+     "hex": "7380c9",
+     "callsign": "ELY004",
+     "reg": "4X-EDK",
+     "type": "B789",
+     "from": "KJFK",
+     "to": "LLBG",
+     "date": "2024-05-13",
+     "evidence": ""
+    }
+   ]
+  },
+  "SADA-0035": {
+   "match": "nearby",
+   "note": "",
+   "legs": [
+    {
+     "leg_id": "7380c0-1724278354",
+     "hex": "7380c0",
+     "callsign": "ELY002",
+     "reg": "4X-EDA",
+     "type": "B789",
+     "from": "KJFK",
+     "to": "LLBG",
+     "date": "2024-08-21",
+     "evidence": ""
+    }
+   ]
+  },
+  "SADA-0038": {
+   "match": "exact",
+   "note": "Silk Way West JFK to Tel Aviv, arriving 8 Oct.",
+   "legs": [
+    {
+     "leg_id": "600b21-1728399529",
+     "hex": "600b21",
+     "callsign": "AZG2784",
+     "reg": "4K-SW888",
+     "type": "B744",
+     "from": "KJFK",
+     "to": "LLBG",
+     "date": "2024-10-08",
+     "evidence": ""
+    }
+   ]
+  },
+  "SADA-0039": {
+   "match": "nearby",
+   "note": "FedEx's US to Liège flights that day; the report does not name the flight.",
+   "legs": [
+    {
+     "leg_id": "ac0d21-1728506949",
+     "hex": "ac0d21",
+     "callsign": "FDX92",
+     "reg": "N876FD",
+     "type": "B77L",
+     "from": "KIND",
+     "to": "EBLG",
+     "date": "2024-10-09",
+     "evidence": ""
+    },
+    {
+     "leg_id": "abcf58-1728504999",
+     "hex": "abcf58",
+     "callsign": "FDX6248",
+     "reg": "N860FD",
+     "type": "B77L",
+     "from": "KMEM",
+     "to": "EBLG",
+     "date": "2024-10-09",
+     "evidence": ""
+    }
+   ]
+  },
+  "SADA-0044": {
+   "match": "exact",
+   "note": "",
+   "legs": [
+    {
+     "leg_id": "440251-1735971690",
+     "hex": "440251",
+     "callsign": "ICL982",
+     "reg": "OE-FMI",
+     "type": "C525",
+     "from": "KJFK",
+     "to": "LLBG",
+     "date": "2025-01-04",
+     "evidence": ""
+    }
+   ]
+  },
+  "SADA-0046": {
+   "match": "exact",
+   "note": "Lufthansa LH453 is DLH453 in the data.",
+   "legs": [
+    {
+     "leg_id": "3c670d-1738806390",
+     "hex": "3c670d",
+     "callsign": "DLH453",
+     "reg": "D-AIXM",
+     "type": "A359",
+     "from": "KLAX",
+     "to": "EDDM",
+     "date": "2025-02-06",
+     "evidence": ""
+    }
+   ]
+  },
+  "SADA-0049": {
+   "match": "exact",
+   "note": "",
+   "legs": [
+    {
+     "leg_id": "3c64f4-1739487378",
+     "hex": "3c64f4",
+     "callsign": "DLH439",
+     "reg": "D-AIGT",
+     "type": "A343",
+     "from": "KDFW",
+     "to": "EDDF",
+     "date": "2025-02-13",
+     "evidence": ""
+    }
+   ]
+  },
+  "SADA-0053": {
+   "match": "exact",
+   "note": "Mumbai to Dubai World Central on 11 Jun, on to Tel Aviv on 12 Jun.",
+   "legs": [
+    {
+     "leg_id": "4d24c0-1749677412",
+     "hex": "4d24c0",
+     "callsign": "CHZ256",
+     "reg": "9H-CAC",
+     "type": "B763",
+     "from": "VABB",
+     "to": "OMDW",
+     "date": "2025-06-11",
+     "evidence": ""
+    },
+    {
+     "leg_id": "4d24c0-1749693670",
+     "hex": "4d24c0",
+     "callsign": "CHZ256",
+     "reg": "9H-CAC",
+     "type": "B763",
+     "from": "OMDW",
+     "to": "LLBG",
+     "date": "2025-06-12",
+     "evidence": ""
+    }
+   ]
+  },
+  "SADA-0054": {
+   "match": "nearby",
+   "note": "",
+   "legs": [
+    {
+     "leg_id": "440ce0-1751275321",
+     "hex": "440ce0",
+     "callsign": "ICL900",
+     "reg": "OE-LRG",
+     "type": "B744",
+     "from": "EBLG",
+     "to": "LLBG",
+     "date": "2025-06-30",
+     "evidence": ""
+    },
+    {
+     "leg_id": "738c0a-1751272672",
+     "hex": "738c0a",
+     "callsign": "ICL600",
+     "reg": "4X-IAJ",
+     "type": "B763",
+     "from": "EBLG",
+     "to": "LLBG",
+     "date": "2025-06-30",
+     "evidence": ""
+    }
+   ]
+  }
+ }
+}

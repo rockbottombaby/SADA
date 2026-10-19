@@ -9,7 +9,8 @@ export type ExploreView =
   | { kind: 'home' }
   | { kind: 'query'; spec: QuerySpec }                // a "Find flights" search
   | { kind: 'area'; ring: [number, number][] }
-  | { kind: 'list'; title: string; legs: Leg[] };   // "open in Explore" from a chat card
+  | { kind: 'list'; title: string; legs: Leg[] }    // "open in Explore" from a chat card
+  | { kind: 'cases'; q?: string };                  // the documented-shipments library
 
 export const app = $state({
   ctx: null as Ctx | null,

@@ -5,6 +5,7 @@
   import { builder, blankQuery, PRESETS, periodDates, periodDays, periodLabel, toArgs, describe, isEmpty, type QuerySpec, type Entity } from './query.svelte';
   import EntityField from './EntityField.svelte';
   import FlightRow from './FlightRow.svelte';
+  import Cases from './Cases.svelte';
 
   let res: any = $state(null), busy = $state(false), err = $state(''), seconds = $state(0), filter = $state('');
   let needPeriod = $state(false);
@@ -55,7 +56,7 @@
     if (v.kind === 'query') load(v.spec);
     else if (v.kind === 'area') loadArea(v.ring);
     else if (v.kind === 'list') { res = { flights: v.legs, totals: { flights: v.legs.length }, per_month: [], top_routes: [], top_aircraft: [], top_companies: [], top_destination_countries: [], top_origin_countries: [] }; showFlows(v.legs, v.title); }
-    else res = null;
+    else { res = null; if (v.kind === 'cases') stopSearch(); }
   });
 
   // refine: click an item in the overview to narrow the search
@@ -123,17 +124,20 @@
       <button class="link" onclick={() => (app.map.drawMode = true)}>Or draw an area on the map →</button>
       {#if !isEmpty(builder.q)}<button class="link" onclick={() => (builder.q = blankQuery())} title="Empty every field">Clear</button>{/if}
     </div>
+    <button class="link lib" onclick={() => (app.explore = { kind: 'cases' })} title="Published reports of weapons movements, with the matching flights">Documented shipments →</button>
   </div>
 {:else}
   <div class="bar">
     <button class="back" onclick={() => home(true)} title="Edit the search">←</button>
     <div class="tt">
-      <div class="label">{app.explore.kind === 'area' ? 'Map area' : app.explore.kind === 'list' ? 'From the assistant' : 'Search'}</div>
-      <span class="title">{app.explore.kind === 'query' ? describe(app.explore.spec) : app.explore.kind === 'list' ? app.explore.title : `Drawn area, ${periodLabel(q.period)}`}</span>
+      <div class="label">{app.explore.kind === 'area' ? 'Map area' : app.explore.kind === 'list' ? 'From the assistant' : app.explore.kind === 'cases' ? 'Library' : 'Search'}</div>
+      <span class="title">{app.explore.kind === 'query' ? describe(app.explore.spec) : app.explore.kind === 'list' ? app.explore.title : app.explore.kind === 'cases' ? 'Documented shipments' : `Drawn area, ${periodLabel(q.period)}`}</span>
     </div>
   </div>
   <div class="body">
-    {#if busy}
+    {#if app.explore.kind === 'cases'}
+      <Cases />
+    {:else if busy}
       <div class="loading"><span class="spin"></span>Searching{app.explore.kind === 'query' && periodDays(app.explore.spec.period) > 120 && !app.explore.spec.from && !app.explore.spec.to && !app.explore.spec.through ? ' month by month: an aircraft or company over a long period takes a while' : ''}…</div>
       <div class="acts"><button onclick={() => home(false)} title="Clear and start a new search">New search</button></div>
     {:else if err}
@@ -233,4 +237,5 @@
     .tr { padding: 7px 0; } .period button { padding: 9px 12px; }
     .acts button { padding: 10px 12px; }
   }
+  .lib { margin-top: 10px; color: var(--ink); }
 </style>

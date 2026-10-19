@@ -6,6 +6,10 @@
   import { settings } from './prefs.svelte';
   import { hasKey, activeKey, activeProfile } from './prefs.svelte';
   import { profileById } from './models';
+  import { loadCases, casesForFlight, STATUS_LABEL, type ShipmentCase } from './cases';
+  // documented cases for this flight or this aircraft around its date (the library's claims, with their status)
+  let reported = $state<ShipmentCase[]>([]);
+  $effect(() => { const l = leg; reported = []; if (!l?.leg_id) return; loadCases().then(lib => { if (leg?.leg_id === l.leg_id) reported = casesForFlight(lib, l); }).catch(() => {}); });
 
   let note = $state(''), noteState = $state('');
   let research: { text: string; citations: Citation[]; at: string; model: string } | null = $state(null);
@@ -139,6 +143,17 @@
             {/each}
           </div>
         </section>
+        {#if reported.length}
+        <section class="in rep">
+          <h4>Reported cases</h4>
+          {#each reported as c (c.id)}
+            <div class="rc"><span class="rd">{c.date}</span><span class="rs">{STATUS_LABEL[c.evidence_status] ?? c.evidence_status}</span>
+              <p>{c.cargo}</p>
+              <small>{c.operator} · {[c.origin, c.destination].join(' → ')} · <a href={c.source_url} target="_blank" rel="noopener noreferrer">{c.source} ↗</a>{#if c.operator_response} · operator: {c.operator_response}{/if}</small></div>
+          {/each}
+          <p class="hint">Published claims with their status, from SADA’s case library; not SADA findings. <button class="link" onclick={() => { closeInspector(); app.explore = { kind: 'cases', q: leg.reg || '' }; if (app.mobile) app.tab = 'search'; }}>Open the library</button></p>
+        </section>
+        {/if}
         <section class="in">
           <h4>Sources</h4>
           {#each d.sources ?? [] as s}<div class="src">{#if s.url}<a href={s.url} target="_blank" rel="noopener noreferrer">{s.title}</a>{:else}{s.title}: {s.detail}{/if}</div>{/each}
@@ -246,4 +261,8 @@
     .x { width: 40px; height: 40px; }
     .nb { grid-template-columns: 1fr 1fr; }
   }
+  .rc { display: grid; grid-template-columns: auto 1fr; gap: 2px 10px; padding: 8px 0; border-top: 1px solid var(--line); font-size: 12px; }
+  .rc .rd { font-family: var(--mono); color: var(--muted); } .rc .rs { font-size: 9.5px; text-transform: uppercase; letter-spacing: 1.2px; color: var(--obs); justify-self: end; }
+  .rc p { grid-column: 1 / 3; margin: 0; line-height: 1.5; } .rc small { grid-column: 1 / 3; color: var(--muted); line-height: 1.45; } .rc a { color: var(--ink); }
+  .rep .link { border: 0; padding: 0; background: none; color: var(--ink); text-decoration: underline; text-transform: none; letter-spacing: 0; font-size: inherit; cursor: pointer; }
 </style>

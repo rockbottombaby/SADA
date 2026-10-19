@@ -38,6 +38,7 @@ Angles it is told to consider:
 | `flight_dossier`, `aircraft_profile`, `aircraft_registry` | One flight in detail, one aircraft across the archive, and ownership. |
 | `us_exports`, `export_flight_crosscheck`, `us_contracts` | US Census exports by HS code, month and customs port. The cross-check sets them against flights from the exporting port's airports. Federal contract awards. |
 | `live_aircraft`, OpenSky tools | Live positions, and OpenSky lookups with the user's own account. |
+| `known_cases` | Documented weapons-shipment cases from published reporting and official statements, with the matching flights in the archive. Claims with their status, not findings. |
 | `case_file` | The investigation's memory: findings, hypotheses, leads, open questions and records requests. |
 | `map_*` | Draw zones, flights and tracks on the user's map. |
 | `run_sql` | Read-only SQL for what the other tools cannot express. Time-limited. |

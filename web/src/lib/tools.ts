@@ -23,6 +23,7 @@ export interface Ctx {
   cellsForPolygon: (ring: [number, number][], res: number) => string[];
   keys?: () => { census?: string; openskyId?: string; openskySecret?: string; openskyBase?: string; proxyBase?: string };   // external-source keys (BYO)
   defaultPeriod?: () => [string, string] | null;   // the user's selected period (browser); tools use it when no dates are given
+  casesUrl?: string;   // the documented-shipments library (public/cases.json); the browser reads its own copy, Node the published one
 }
 export interface ToolDef {
   name: string;
@@ -649,6 +650,26 @@ export const TOOLS: ToolDef[] = [
           note: 'Use aircraft_history for the individual flights, route_search to see who else flies the same routes, export_flight_crosscheck for trade data in the active months, us_contracts for the owner/operator (US military airlift contracts), aircraft_registry for the operator\'s other aircraft.',
         };
       } finally { await ctx.query(`DROP TABLE IF EXISTS ${tmp}`); }
+    },
+  },
+  {
+    name: 'known_cases',
+    description: 'Documented weapons-shipment cases: published reporting and official statements (The Ditch, The Intercept, PYM, ministries of defence, Reuters…) about specific movements by air, sea and land since 2023, compiled by SADA with what the flight archive shows for each air case (the matching flights, or that the aircraft went dark). Use to check whether an aircraft, callsign, operator, route or period has been reported before, and to find precedents. The claims are the sources\', not SADA findings: cite source_url and give evidence_status (official_confirmation, records_supported, reported, alleged, disputed) and delivery_outcome with every case. Not exhaustive: absence here is not evidence of nothing.',
+    input_schema: { type: 'object', properties: {
+      q: { type: 'string', description: 'free text over operator, vehicle, route, cargo, source' }, aircraft: { type: 'string', description: 'registration or ICAO hex' }, callsign: { type: 'string' },
+      operator: { type: 'string' }, country: { type: 'string', description: 'destination country: Israel, Ukraine' }, mode: { type: 'string', enum: ['air', 'sea', 'land'] },
+      date_from: { type: 'string' }, date_to: { type: 'string' }, limit: { type: 'integer' } } },
+    async run(ctx, a) {
+      const { loadCases, searchCases } = await import('./cases');
+      const lib = await loadCases(ctx.casesUrl);
+      const all = searchCases(lib, a);
+      const cases = all.slice(0, Math.min(num(a.limit, 25), 60)).map(c => ({ id: c.id, date: c.date + (c.date_precision !== 'day' ? ` (${c.date_precision})` : ''), country: c.country, mode: c.mode,
+        vehicle: c.vehicle, operator: c.operator, route: [c.origin, c.transit, c.destination].filter(Boolean).join(' → '), cargo: c.cargo, quantity: c.quantity ? `${c.quantity} ${c.unit}` : undefined,
+        evidence_status: c.evidence_status, delivery_outcome: c.delivery_outcome, source: c.source, source_url: c.source_url, secondary_url: c.secondary_url || undefined,
+        operator_response: c.operator_response || undefined, government_response: c.government_response || undefined, notes: c.notes || undefined,
+        sada_archive: c.mode === 'air' ? { match: c.sada.match, note: c.sada.note || undefined, flights: c.sada.legs.map(l => `${l.callsign} ${l.reg} ${l.from || '?'}→${l.to || '?'} ${l.date} [${l.leg_id}]`) } : undefined }));
+      return { total: all.length, shown: cases.length, library: { cases: lib.cases.length, built: lib.built_utc, licence: lib.licence, method: lib.method }, cases,
+        note: 'Published claims, not SADA findings; cite the source and its status. sada_archive.match: exact = the reported flight is in the data, nearby = the aircraft/operator seen on the route that day, dark = seen leaving with no recorded destination, none = not found. Leg ids in brackets can be drawn with map_show_flights.' };
     },
   },
   {

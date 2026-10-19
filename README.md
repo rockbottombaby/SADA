@@ -20,6 +20,8 @@ means "echo" in Arabic.
   or use your own Anthropic API key.
 - **Find flights** yourself between two countries or airports, through a country's airspace, or by aircraft, airline or callsign.
 - **Open any flight** to see its route, which countries it flew over and when, and the aircraft's other flights.
+- **Browse documented shipments**: a library of weapons movements reported by journalists and governments since 2023, each
+  matched against the flight archive. The claims are the sources', shown with their status. Details in [cases/](cases/).
 - **Watch live traffic**, including military aircraft worldwide.
 - **Save your work** to a file and open it again later.
 
