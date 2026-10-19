@@ -56,14 +56,20 @@
   @keyframes show { from { visibility: hidden; } }
   @keyframes fade { from { opacity: 0; } }
   @keyframes rise { from { opacity: 0; transform: translateY(14px); } }
-  @media (max-width: 720px) {
-    .wrap { padding-top: 40px; }
-    .card { margin-top: 48px; }
-    .card { grid-template-columns: 1fr; }
-    .portrait { min-height: 0; display: flex; justify-content: center; margin-top: -48px; border-radius: 0; clip-path: none; }
-    .portrait img { position: static; transform: none; height: auto; width: min(280px, 80%); }
-    .text { padding: 22px 22px 26px; }
-    h2 { font-size: 24px; }
+  /* phones: a compact card that fits the screen; the portrait is a short band above the text, the button always in reach */
+  @media (max-width: 760px) {
+    .wrap { padding: 12px; align-items: center; }
+    .card { grid-template-columns: 1fr; width: 100%; max-height: calc(100dvh - 24px); overflow-y: auto; border-radius: 10px; }
+    .portrait { min-height: 0; height: 150px; border-radius: 10px 10px 0 0; clip-path: none; overflow: hidden; flex: none; }
+    .portrait img { position: absolute; left: 50%; top: 0; bottom: auto; transform: translateX(-50%); height: 210px; width: auto;
+      -webkit-mask-image: linear-gradient(to bottom, #000 55%, rgba(0, 0, 0, 0)); mask-image: linear-gradient(to bottom, #000 55%, rgba(0, 0, 0, 0)); }
+    .text { padding: 4px 20px 18px; }
+    h2 { font-size: 22px; margin-top: 6px; }
+    .years { margin-top: 5px; }
+    p { margin-top: 12px; font-size: 13.5px; line-height: 1.55; }
+    .quote { font-size: 15px; margin-top: 14px; padding-left: 12px; }
+    .name { font-size: 11.5px; margin: 12px 0 14px; padding-top: 10px; }
+    button { align-self: stretch; margin-top: 0; padding: 12px; }
   }
   @media (prefers-reduced-motion: reduce) { .scrim, .card { animation: none; } }
 </style>
