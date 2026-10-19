@@ -59,7 +59,7 @@ export const app = $state({
   aboutSection: '',                   // section to scroll to when it opens (e.g. 'support')
   // phones: one panel at a time over the map, chosen with the bottom tab bar (App.svelte); set from a media query
   mobile: false,
-  tab: 'search' as 'search' | 'map' | 'ask',
+  tab: 'map' as 'search' | 'map' | 'ask',
   chooser: null as null | string[],   // flights under a tap on the map when several overlap (mobile): leg ids to pick from
 });
 

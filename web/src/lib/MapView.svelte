@@ -25,6 +25,14 @@
   let loaded = $state(false);
   let drawPts: [number, number][] = [];
   let showZones = $state(true);
+  const phone = matchMedia('(max-width: 760px)').matches;
+  let showNames = $state(!phone);   // country names: off on phones, where they crowd the small globe
+  // the early-beta note, inside the map so it never pushes the controls; dismissed once per browser
+  let note = $state((() => { try { return !localStorage.getItem('sada.notice1'); } catch { return true; } })());
+  const dismissNote = () => { note = false; try { localStorage.setItem('sada.notice1', '1'); } catch { /* storage blocked */ } };
+  // the whole planet on the screen (phones): the globe's diameter is 512·2^z/π px
+  const fitZoom = () => Math.log2(Math.min(el.clientWidth, el.clientHeight) * Math.PI / 512) - 0.14;
+  const home = () => (phone ? { center: [-15, 30] as [number, number], zoom: fitZoom() } : { center: [-15, 55] as [number, number], zoom: 1.7 });
   let showFlowsLayer = $state(true);
 
   const empty: GeoJSON.FeatureCollection = { type: 'FeatureCollection', features: [] };
@@ -73,14 +81,14 @@
           { id: 'borders', type: 'line', source: 'countries', paint: { 'line-color': '#5c5c5c', 'line-width': ['interpolate', ['linear'], ['zoom'], 1, 0.5, 6, 1.1] } },
         ],
       } as any,
-      center: [-15, 55], zoom: 1.7, attributionControl: false,
+      ...(phone ? { center: [-15, 30], zoom: Math.log2(Math.min(el.clientWidth, el.clientHeight) * Math.PI / 512) - 0.14 } : { center: [-15, 55], zoom: 1.7 }), attributionControl: false,
       fadeDuration: 0,   // labels switch instantly; a fade lets names on the far side of the globe show through while it turns
     });
     if (import.meta.env.DEV) (window as any).__map = map;   // test hook (dev server only)
     map.addControl(new maplibregl.NavigationControl({ visualizePitch: false }), 'top-right');   // the dock owns the bottom edge
-    map.addControl(new maplibregl.AttributionControl({ customAttribution: 'ADS-B: ADSB.lol (ODbL) · Natural Earth · OurAirports' }), 'bottom-left');
-    // phones: the attribution starts folded to its ⓘ (it opens on tap); the dock sits above it
-    if (matchMedia('(max-width: 760px)').matches) map.once('load', () => document.querySelector('.maplibregl-ctrl-attrib')?.classList.remove('maplibregl-compact-show'));
+    // the attribution folded to its ⓘ everywhere (it opens on a click), tucked under the dock at the bottom right
+    map.addControl(new maplibregl.AttributionControl({ compact: true, customAttribution: 'ADS-B: ADSB.lol (ODbL) · Natural Earth · OurAirports' }), 'bottom-right');
+    map.once('load', () => document.querySelector('.maplibregl-ctrl-attrib')?.classList.remove('maplibregl-compact-show'));
     map.on('load', () => {
       map.addSource('zones', { type: 'geojson', data: empty });
       map.addLayer({ id: 'zones-line', type: 'line', source: 'zones', paint: {
@@ -384,7 +392,8 @@
     ends.setData({ type: 'FeatureCollection', features: e });
   });
   $effect(() => { const f = app.map.flyTo; if (loaded && f) map.flyTo({ center: [f.lon, f.lat], zoom: f.zoom, duration: 1200 }); });
-  $effect(() => { if (loaded && app.map.resetSeq) map.flyTo({ center: [-15, 55], zoom: 1.7, duration: 900 }); });
+  $effect(() => { if (loaded && app.map.resetSeq) map.flyTo({ ...home(), duration: 900 }); });
+  $effect(() => { if (loaded) for (let i = 1; i <= 4; i++) map.setLayoutProperty('clabels-' + i, 'visibility', showNames ? 'visible' : 'none'); });
   $effect(() => {
     if (!loaded) return;
     (map.getSource('area') as maplibregl.GeoJSONSource).setData(app.map.area ? { type: 'Feature', properties: {}, geometry: { type: 'Polygon', coordinates: [app.map.area] } } as any : empty);
@@ -448,10 +457,14 @@
 <div class="toolbar">
   <button class:on={showZones} title="Airspace boundaries (sovereign + FIR)" onclick={() => (showZones = !showZones)}>Boundaries</button>
   <button class:on={showFlowsLayer} title="Flight lines" onclick={() => (showFlowsLayer = !showFlowsLayer)}>Flights</button>
+  <button class:on={showNames} title="Country names" onclick={() => (showNames = !showNames)}>Names</button>
   <button class:on={app.map.drawMode} title="Draw a rectangle to find flights through it" onclick={() => { app.map.drawMode = !app.map.drawMode; drawPts = []; }}>Draw area</button>
   <button class="livebtn" class:on={live.on} title="Military aircraft in the air right now (ADSB.lol live), plus aircraft you follow" onclick={() => setLive(!live.on)}><i class="dot"></i>Live</button>
   <button title="Clear the map" onclick={resetAll}>Reset</button>
 </div>
+{#if note && app.ready}
+  <div class="betanote" role="status"><i></i>Early beta — some hangs may be expected<button class="x" aria-label="Dismiss" title="Dismiss" onclick={dismissNote}>✕</button></div>
+{/if}
 
 {#if live.on}
   <div class="livestat" role="status">
@@ -636,13 +649,27 @@
   .chooser .cl { overflow-y: auto; padding: 0 10px 8px; }
   /* phones: a compact toolbar, no zoom buttons (pinch), the live card and dock as bottom sheets, no hover label */
   @media (max-width: 760px) {
-    .toolbar { top: 8px; left: 8px; right: 8px; flex-wrap: wrap; } .toolbar button { flex: 1; padding: 9px 6px; font-size: 9.5px; letter-spacing: 1.2px; }
+    /* a 3 × 2 grid of equal cells, every label on one line */
+    .toolbar { top: 8px; left: 8px; right: 8px; display: grid; grid-template-columns: repeat(3, 1fr); }
+    .toolbar button { padding: 11px 4px; font-size: 9.5px; letter-spacing: 1.2px; white-space: nowrap; border-left: 1px solid var(--line); display: flex; align-items: center; justify-content: center; gap: 6px; }
+    .toolbar button:nth-child(3n + 1) { border-left: 0; } .toolbar button:nth-child(n + 4) { border-top: 1px solid var(--line); }
     .map :global(.maplibregl-ctrl-top-right) { display: none; }
-    .livestat { top: 54px; left: 8px; right: 8px; } .livestat .vn { max-width: none; }
+    .livestat { top: 88px; left: 8px; right: 8px; } .livestat .vn { max-width: none; }
     .livecard { top: auto; bottom: 8px; left: 8px; right: 8px; width: auto; z-index: 7; backdrop-filter: none; border-radius: 10px; }
     .archint { display: none; }
-    .hint { top: 52px; left: 8px; right: 8px; text-align: center; }
-    .dock { left: 8px; right: 8px; bottom: 34px; } .dock.full { top: 52px; }
-    .map :global(.maplibregl-ctrl-bottom-left) { bottom: 2px; }
+    .hint { top: 88px; left: 8px; right: 8px; text-align: center; }
+    .dock { left: 8px; right: 8px; bottom: 30px; } .dock.full { top: 88px; }   /* a strip under the dock for the ⓘ, like the desktop */
   }
+  .betanote { position: absolute; z-index: 4; top: 18px; right: 58px; display: inline-flex; align-items: center; gap: 7px; padding: 4px 6px 4px 9px; background: rgba(18,18,18,.85); border: 1px solid rgba(242,193,78,.45); border-radius: 999px; color: var(--obs); font-size: 10px; letter-spacing: .4px; white-space: nowrap; }
+  .betanote i { width: 6px; height: 6px; border-radius: 50%; background: var(--obs); flex: none; }
+  .betanote .x { border: 0; background: none; padding: 0 3px; color: rgba(242,193,78,.7); font-size: 10px; cursor: pointer; line-height: 1; }
+  .betanote .x:hover { color: var(--obs); background: none; }
+  @media (max-width: 760px) { .betanote { top: auto; right: auto; left: 50%; transform: translateX(-50%); bottom: 136px; } }
+  /* the ⓘ: a small dark disc at the bottom right, under the dock; its text opens dark too */
+  .map :global(.maplibregl-ctrl-bottom-right) { bottom: 3px; right: 4px; }
+  .map :global(.maplibregl-ctrl-bottom-right .maplibregl-ctrl) { margin: 0; }
+  /* folded: just the ⓘ disc (MapLibre's own), slightly dimmed; open: a dark text box with the ⓘ at its right end */
+  .map :global(.maplibregl-ctrl-attrib.maplibregl-compact:not(.maplibregl-compact-show)) { padding: 0; width: 24px; height: 24px; min-height: 0; background: transparent; box-shadow: none; opacity: .75; }
+  .map :global(.maplibregl-ctrl-attrib.maplibregl-compact-show) { padding: 3px 30px 3px 10px; font-size: 10.5px; color: var(--muted); background: rgba(18,18,18,.92); border: 1px solid var(--line2); border-radius: 12px; }
+  .map :global(.maplibregl-ctrl-attrib a) { color: var(--text); border: 0; }
 </style>
