@@ -124,8 +124,15 @@
       <button class="link" onclick={() => (app.map.drawMode = true)}>Or draw an area on the map →</button>
       {#if !isEmpty(builder.q)}<button class="link" onclick={() => (builder.q = blankQuery())} title="Empty every field">Clear</button>{/if}
     </div>
-    <button class="link lib" onclick={() => (app.explore = { kind: 'cases' })} title="Published reports of weapons movements, with the matching flights">Documented shipments →</button>
-    <button class="link lib" onclick={() => (app.explore = { kind: 'pins' })} title="Flights you pinned from the flight sheet; saved with the session">Flights of interest{#if app.pins.length} ({app.pins.length}){/if} →</button>
+    <!-- the two other lists: the published case library, and this session's board of pinned flights -->
+    <div class="entries">
+      <button class="entry" onclick={() => (app.explore = { kind: 'cases' })}>
+        <span class="label">Library</span><b>Documented shipments</b><small>Weapons movements reported by journalists and governments since 2023, matched against the archive</small><i>→</i>
+      </button>
+      <button class="entry" onclick={() => (app.explore = { kind: 'pins' })}>
+        <span class="label">This session</span><b>Flights of interest</b><small>{app.pins.length ? `${app.pins.length} pinned flight${app.pins.length === 1 ? '' : 's'}, saved with the session` : 'Pin flights from the flight sheet to keep them here'}</small><i>→</i>
+      </button>
+    </div>
   </div>
 {:else}
   <div class="bar">
@@ -252,7 +259,11 @@
     .tr { padding: 7px 0; } .period button { padding: 9px 12px; }
     .acts button { padding: 10px 12px; }
   }
-  .lib { margin-top: 10px; color: var(--ink); }
+  .entries { display: flex; flex-direction: column; gap: 8px; margin-top: 22px; padding-top: 18px; border-top: 1px solid var(--line); }
+  .entry { display: grid; grid-template-columns: 1fr auto; grid-template-rows: auto auto auto; column-gap: 12px; row-gap: 2px; padding: 12px 14px; text-align: left; text-transform: none; letter-spacing: 0; border: 1px solid var(--line); border-radius: var(--r); }
+  .entry:hover { background: rgba(232,232,232,.04); color: inherit; border-color: var(--line2); }
+  .entry .label { font-size: 9.5px; } .entry b { font-size: 13.5px; color: var(--ink); font-weight: 600; } .entry small { font-size: 11.5px; line-height: 1.45; color: var(--muted); }
+  .entry i { grid-column: 2; grid-row: 1 / 4; align-self: center; font-style: normal; color: var(--muted); }
   .pinrow { display: grid; grid-template-columns: 1fr auto; align-items: center; } .pinrow .unpin { border: 0; padding: 6px 8px; color: var(--faint); font-size: 11px; letter-spacing: 0; } .pinrow .unpin:hover { color: var(--ink); background: none; }
   .muted b { color: var(--ink); }
 </style>

@@ -84,7 +84,6 @@
       <div class="id in">
         <div class="label">Flight</div>
         <div class="cs">{String(leg.callsigns || '').split(' ').filter(Boolean).join(' · ') || leg.reg || '(no callsign)'}</div>
-        {#if photo}<a class="photo" href={photo.link} target="_blank" rel="noopener noreferrer" title="Photo: {photo.photographer} · Planespotters.net"><img src={photo.thumb} alt="{leg.reg || leg.hex}" /><span>© {photo.photographer}</span></a>{/if}
         <div class="ac">
           {#if leg.reg}<span class="reg">{leg.reg}</span>{/if}
           <span>{leg.desc || leg.type || 'Unknown type'}</span>
@@ -92,6 +91,7 @@
           {#if leg.mil}<span class="tag mil">military</span>{/if}
         </div>
       </div>{/if}
+      {#if photo && leg}<a class="photo" href={photo.link} target="_blank" rel="noopener noreferrer" title="Open on Planespotters.net"><img src={photo.thumb} alt="{leg.reg || leg.hex}" /><span>© {photo.photographer} · Planespotters</span></a>{/if}
       <button class="x" title="Close (Esc)" aria-label="Close" onclick={closeInspector}>✕</button>
     </header>
 
@@ -192,13 +192,15 @@
     </div>
 
     <footer>
-      <button class="primary" disabled={loading || !leg} onclick={ask} title="Ask the assistant about this flight in the open chat">Ask the assistant</button>
-      <button class="ghost pin" class:on={leg && isPinned(leg.leg_id)} disabled={loading || !leg} onclick={() => togglePin(leg)} title="Keep this flight on your flights-of-interest board (saved with the session)">{leg && isPinned(leg.leg_id) ? '★ Pinned' : '☆ Pin'}</button>
-      <button class="ghost" disabled={loading} onclick={cite}>Copy citation</button>
-      <button class="ghost" onclick={() => navigator.clipboard.writeText(location.href)}>Copy link</button>
-      <span class="sp"></span>
-      {#if loading}<span class="legid loading">loading flight…</span>{/if}
-      <span class="legid">{leg?.leg_id ?? app.inspectorDraft?.id}</span>
+      <div class="fmain">
+        <button class="primary" disabled={loading || !leg} onclick={ask} title="Ask the assistant about this flight in the open chat">Ask the assistant</button>
+        <button class="pin" class:on={leg && isPinned(leg.leg_id)} disabled={loading || !leg} onclick={() => togglePin(leg)} title="Keep this flight on your flights-of-interest board (saved with the session)">{leg && isPinned(leg.leg_id) ? '★ Pinned' : '☆ Pin'}</button>
+      </div>
+      <div class="fsec">
+        <button class="ghost" disabled={loading} onclick={cite}>Copy citation</button>
+        <button class="ghost" onclick={() => navigator.clipboard.writeText(location.href)}>Copy link</button>
+        <span class="legid" class:loading>{loading ? 'loading flight…' : (leg?.leg_id ?? app.inspectorDraft?.id)}</span>
+      </div>
     </footer>
   </aside>
 {/if}
@@ -209,13 +211,13 @@
     display: flex; flex-direction: column; overflow: hidden; background: var(--bg); border: 1px solid var(--line2); border-radius: var(--r);
     box-shadow: 0 40px 100px rgba(0,0,0,.6); animation: pop .22s cubic-bezier(.2,.8,.2,1); }
   @keyframes fade { from { opacity: 0; } } @keyframes pop { from { opacity: 0; transform: translate(-50%, -48%); } }
-  header { display: flex; justify-content: space-between; gap: 12px; padding: 22px 24px 8px; }
+  header { position: relative; display: grid; grid-template-columns: 1fr auto; gap: 16px 24px; align-items: center; padding: 22px 64px 10px 24px; }
   .cs { font-size: 24px; font-weight: 600; letter-spacing: -.3px; margin-top: 4px; }
   .ac { display: flex; flex-wrap: wrap; gap: 6px 10px; align-items: center; color: var(--muted); font-size: 12px; margin-top: 6px; }
   .reg { font-family: var(--mono); color: var(--ink); border: 1px solid var(--line2); padding: 0 6px; border-radius: 3px; font-size: 11.5px; }
   .dot::before { content: '/'; margin-right: 10px; color: var(--faint); }
   .tag.mil { color: var(--mil); border-color: rgba(199,166,255,.5); }
-  .x { width: 34px; height: 34px; padding: 0; letter-spacing: 0; font-size: 12px; flex: none; }
+  .x { position: absolute; top: 18px; right: 18px; width: 34px; height: 34px; padding: 0; letter-spacing: 0; font-size: 12px; }
   .route { display: grid; grid-template-columns: 1fr minmax(90px, 170px) 1fr; align-items: center; gap: 14px; margin: 16px 24px 6px; padding: 18px 0; border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); }
   .end.r { text-align: right; }
   .ap { font-size: 28px; font-weight: 500; font-family: var(--mono); letter-spacing: 1px; } .ap.unc { color: var(--muted); }
@@ -252,8 +254,10 @@
   .log { font-size: 11px; color: var(--faint); margin-top: 10px; font-family: var(--mono); } .md { font-size: 13.5px; line-height: 1.65; } .md.live { opacity: .75; }
   .cites { display: flex; flex-direction: column; gap: 4px; font-size: 12px; margin-top: 10px; } .cites a { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; align-self: flex-start; max-width: 100%; }
   textarea { width: 100%; min-height: 200px; margin-top: 12px; }
-  footer { display: flex; align-items: center; gap: 8px; padding: 12px 24px; border-top: 1px solid var(--line); }
-  .ghost { font-size: 9.5px; padding: 6px 10px; }
+  footer { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 12px 24px; border-top: 1px solid var(--line); }
+  .fmain, .fsec { display: flex; align-items: center; gap: 8px; }
+  .fmain button { padding: 9px 14px; } .pin { color: var(--muted); } .pin.on { color: var(--obs); border-color: rgba(242,193,78,.5); }
+  .ghost { font-size: 9.5px; padding: 6px 10px; color: var(--muted); }
   /* skeleton placeholders: a soft light sweeps across while the part loads; real content fades in when it arrives */
   .sk { display: block; height: 12px; border-radius: 3px; background: linear-gradient(90deg, rgba(232,232,232,.05) 0%, rgba(232,232,232,.13) 40%, rgba(232,232,232,.05) 80%);
     background-size: 300% 100%; animation: shimmer 1.4s ease-in-out infinite; }
@@ -265,16 +269,15 @@
   .legid.loading { color: var(--muted); animation: fade 1s ease-in-out infinite alternate; }
   .err { color: var(--sov); font-size: 12.5px; margin: 14px 0 0; }
   @media (prefers-reduced-motion: reduce) { .sk, .in, .legid.loading { animation: none; } }
-  .sp { flex: 1; } .legid { font-size: 10.5px; color: var(--faint); font-family: var(--mono); }
+  .legid { font-size: 10px; color: var(--faint); font-family: var(--mono); margin-left: 6px; }
   /* phones: a bottom sheet, the route stacked, wider touch targets */
   @media (max-width: 900px) {
     .scrim { backdrop-filter: none; -webkit-backdrop-filter: none; background: rgba(8,8,8,.7); }
     .sheet { left: 0; right: 0; top: auto; bottom: 0; transform: none; width: 100%; max-height: calc(100dvh - 44px); border-radius: 14px 14px 0 0; border-bottom: 0; animation: rise .25s cubic-bezier(.2,.8,.2,1); }
     @keyframes rise { from { transform: translateY(40px); opacity: 0; } }
     header { padding: 18px 18px 6px; }
-    .route { grid-template-columns: 1fr; gap: 6px; margin: 12px 18px 4px; padding: 14px 0; }
-    .end.r { text-align: left; } .mid { display: none; }
-    .ap { font-size: 24px; }
+    .route { grid-template-columns: 1fr 1fr; gap: 12px; margin: 10px 18px 2px; padding: 12px 0; }
+    .mid { display: none; } .ap { font-size: 22px; } .nm { font-size: 11.5px; line-height: 1.3; }
     .x { width: 40px; height: 40px; }
     .nb { grid-template-columns: 1fr 1fr; }
   }
@@ -282,10 +285,17 @@
   .rc .rd { font-family: var(--mono); color: var(--muted); } .rc .rs { font-size: 9.5px; text-transform: uppercase; letter-spacing: 1.2px; color: var(--obs); justify-self: end; }
   .rc p { grid-column: 1 / 3; margin: 0; line-height: 1.5; } .rc small { grid-column: 1 / 3; color: var(--muted); line-height: 1.45; } .rc a { color: var(--ink); }
   .rep .link { border: 0; padding: 0; background: none; color: var(--ink); text-decoration: underline; text-transform: none; letter-spacing: 0; font-size: inherit; cursor: pointer; }
-  .photo { float: right; margin: 0 0 8px 16px; width: 150px; border-radius: var(--r); overflow: hidden; border: 1px solid var(--line2); text-decoration: none; display: block; }
-  .photo img { display: block; width: 100%; height: 100px; object-fit: cover; }
-  .photo span { display: block; font-size: 9px; color: var(--faint); padding: 3px 6px; letter-spacing: .3px; }
-  .pin.on { color: var(--obs); border-color: rgba(242,193,78,.5); }
-  footer { flex-wrap: wrap; gap: 6px; }
-  @media (max-width: 900px) { .photo { float: none; width: 100%; margin: 6px 0 10px; } .photo img { height: 140px; } }
+  /* the aircraft photo: a card in the header's right column, the credit under it */
+  .photo { grid-column: 2; grid-row: 1; width: 168px; border-radius: var(--r); overflow: hidden; border: 1px solid var(--line2); text-decoration: none; display: block; background: var(--panel); }
+  .photo img { display: block; width: 100%; height: 108px; object-fit: cover; }
+  .photo span { display: block; font-size: 9px; color: var(--faint); padding: 4px 8px; letter-spacing: .3px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  @media (max-width: 900px) {
+    /* phones: the photo beside the title, the route in two columns, so the airspace list is on the first screen */
+    header { grid-template-columns: 1fr 112px; gap: 10px 12px; align-items: start; padding: 16px 18px 6px; }
+    .x { top: 10px; right: 10px; width: 36px; height: 36px; background: var(--bg); }
+    .cs { font-size: 21px; margin-top: 6px; }
+    .photo { width: 112px; margin-top: 30px; } .photo img { height: 76px; } .photo span { font-size: 8px; padding: 3px 6px; }
+    footer { flex-direction: column; align-items: stretch; gap: 6px; padding: 8px 12px calc(8px + env(safe-area-inset-bottom, 0px)); }
+    .fmain button, .fsec .ghost { flex: 1; padding: 11px 6px; } .fsec { flex-wrap: wrap; } .legid { display: none; }
+  }
 </style>
