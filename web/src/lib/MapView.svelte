@@ -669,8 +669,9 @@
   .map :global(.maplibregl-ctrl-bottom-right) { bottom: 3px; right: 4px; }
   .map :global(.maplibregl-ctrl-bottom-right .maplibregl-ctrl) { margin: 0; }
   /* folded: just the ⓘ disc (MapLibre's own), slightly dimmed; open: a dark text box with the ⓘ at its right end */
-  .map :global(.maplibregl-ctrl-attrib.maplibregl-compact) { padding: 0; width: 24px; height: 24px; min-height: 0; background: rgba(18,18,18,.92); border: 1px solid var(--line2); border-radius: 12px; box-shadow: none; position: relative; }
-  .map :global(.maplibregl-ctrl-attrib.maplibregl-compact-show) { width: auto; padding: 0 28px 0 10px; line-height: 22px; font-size: 10.5px; color: var(--muted); }
+  /* folded: only the disc, no outline; the pill's stroke and fill fade in as it extends */
+  .map :global(.maplibregl-ctrl-attrib.maplibregl-compact) { padding: 0; width: 24px; height: 24px; min-height: 0; background: rgba(18,18,18,0); border: 1px solid rgba(232,232,232,0); border-radius: 12px; box-shadow: none; position: relative; transition: background-color .25s, border-color .25s; }
+  .map :global(.maplibregl-ctrl-attrib.maplibregl-compact-show) { width: auto; padding: 0 28px 0 10px; line-height: 22px; font-size: 10.5px; color: var(--muted); background: rgba(18,18,18,.92); border-color: var(--line2); }
   /* the ⓘ: the same dark disc with a light glyph in both states, anchored at the right end; the pill extends to the left of it */
   .map :global(.maplibregl-ctrl-attrib-button) { position: absolute; top: -1px; right: -1px; width: 24px; height: 24px; margin: 0; padding: 0; border: 0; border-radius: 12px; background-color: transparent; filter: invert(.78); outline: none; box-shadow: none; }
   .map :global(.maplibregl-ctrl-attrib.maplibregl-compact-show .maplibregl-ctrl-attrib-button) { background-color: transparent; }
