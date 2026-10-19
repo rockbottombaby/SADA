@@ -36,11 +36,14 @@ write_files:
       resolver 127.0.0.53 1.1.1.1 valid=300s ipv6=off;
       resolver_timeout 5s;
       # per-address budgets (public service): bursts allowed, sustained abuse gets 429
-      limit_req_zone $binary_remote_addr zone=live_ip:10m rate=10r/s;
-      limit_req_zone $binary_remote_addr zone=os_ip:10m rate=2r/s;
+      limit_req_zone $http_x_forwarded_for zone=live_ip:10m rate=10r/s;   # the client address Caddy forwards (the connecting address is always Caddy itself)
+      limit_req_zone $http_x_forwarded_for zone=os_ip:10m rate=2r/s;
       limit_req_status 429;
       server {{
         listen 127.0.0.1:8081;
+        # Live positions: ADSB.lol first; when it rate-limits us (4/s, 60/min, 500/day per address) or fails, the same
+        # request goes to adsb.fi, which serves the same readsb API. Only our own identity reaches either (no forwarded
+        # client headers: a forwarded address makes the upstream count every visitor against our budget).
         location /v2/ {{
           limit_req zone=live_ip burst=40 nodelay;
           set $adsblol https://api.adsb.lol;
@@ -49,15 +52,46 @@ write_files:
           proxy_ssl_server_name on;
           proxy_set_header Host api.adsb.lol;
           proxy_set_header User-Agent "SADA airwatch (open-source investigative flight monitor)";
+          proxy_set_header X-Forwarded-For "";
+          proxy_set_header X-Forwarded-Proto "";
+          proxy_set_header X-Forwarded-Host "";
+          proxy_set_header Origin "";
+          proxy_set_header Referer "";
+          proxy_set_header Cookie "";
           proxy_hide_header Access-Control-Allow-Origin;
           proxy_ignore_headers Cache-Control Expires Set-Cookie;
           proxy_cache live;
-          proxy_cache_valid 200 15s;
+          proxy_cache_valid 200 20s;
           proxy_cache_lock on;
           proxy_cache_lock_timeout 15s;
           proxy_cache_background_update on;
+          proxy_cache_use_stale error timeout updating http_500 http_502 http_503 http_504;
+          proxy_intercept_errors on;
+          error_page 429 500 502 503 504 = @fi;
+          add_header X-Cache $upstream_cache_status always;
+          add_header X-Live-Source adsb.lol always;
+        }}
+        location @fi {{
+          set $adsbfi https://opendata.adsb.fi;
+          proxy_pass $adsbfi/api$request_uri;
+          proxy_http_version 1.1;
+          proxy_ssl_server_name on;
+          proxy_set_header Host opendata.adsb.fi;
+          proxy_set_header User-Agent "SADA airwatch (open-source investigative flight monitor)";
+          proxy_set_header X-Forwarded-For "";
+          proxy_set_header X-Forwarded-Proto "";
+          proxy_set_header X-Forwarded-Host "";
+          proxy_set_header Origin "";
+          proxy_set_header Referer "";
+          proxy_set_header Cookie "";
+          proxy_hide_header Access-Control-Allow-Origin;
+          proxy_ignore_headers Cache-Control Expires Set-Cookie;
+          proxy_cache live;
+          proxy_cache_valid 200 20s;
+          proxy_cache_lock on;
           proxy_cache_use_stale error timeout updating http_429 http_500 http_502 http_503 http_504;
           add_header X-Cache $upstream_cache_status always;
+          add_header X-Live-Source adsb.fi always;
         }}
         # recent track of one aircraft (tar1090 trace file from ADSB.lol's globe): drawn when Live is switched on
         location /data/traces/ {{
