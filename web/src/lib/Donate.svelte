@@ -1,10 +1,14 @@
 <script lang="ts">
-  // Where money is needed: the fundraisers for Sha'ban al-Dalou's family. Shown by the "Buy me a coffee" button and in About.
+  // Where money is needed: the fundraisers for Sha'ban al-Dalou's family and others in Gaza. Shown by the "Buy me a coffee" button and in About.
   const CAMPAIGNS = [
     { title: "Support Sha'ban's family", by: 'GoFundMe · started for Sha\'ban\'s family of seven, organised by Mohamad Ali',
       url: 'https://www.gofundme.com/f/donate-to-me-those-affected-by-the-war-in-gaza' },
     { title: "Sha'ban's cousin's fundraiser", by: 'GoFundMe · family member in Gaza',
       url: 'https://gofund.me/005519d20' },
+    { title: 'Gaza Skate Team', by: 'GoFundMe · the skateboarding community in Gaza',
+      url: 'https://www.gofundme.com/f/donate-to-the-gaza-skate-team-gm8ut' },
+    { title: 'Save the Raneen family', by: 'Chuffed · a family in Gaza',
+      url: 'https://chuffed.org/project/157829-save-the-raneen-family' },
   ];
 </script>
 
@@ -15,7 +19,7 @@
     </a>
   {/each}
 </div>
-<p class="note">Both are run by others, not by SADA. Please read each page before giving.</p>
+<p class="note">All of these are run by others, not by SADA. Please read each page before giving.</p>
 
 <style>
   .links { display: flex; flex-direction: column; gap: 8px; margin: 14px 0 8px; }
