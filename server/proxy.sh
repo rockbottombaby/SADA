@@ -52,6 +52,7 @@ write_files:
           proxy_ssl_server_name on;
           proxy_set_header Host api.adsb.lol;
           proxy_set_header User-Agent "SADA airwatch (open-source investigative flight monitor)";
+          proxy_set_header Accept-Encoding "";   # plain bodies in the cache: a zstd body cached for one browser is unreadable to another (Safari)
           proxy_set_header X-Forwarded-For "";
           proxy_set_header X-Forwarded-Proto "";
           proxy_set_header X-Forwarded-Host "";
@@ -78,6 +79,7 @@ write_files:
           proxy_ssl_server_name on;
           proxy_set_header Host opendata.adsb.fi;
           proxy_set_header User-Agent "SADA airwatch (open-source investigative flight monitor)";
+          proxy_set_header Accept-Encoding "";   # plain bodies in the cache: a zstd body cached for one browser is unreadable to another (Safari)
           proxy_set_header X-Forwarded-For "";
           proxy_set_header X-Forwarded-Proto "";
           proxy_set_header X-Forwarded-Host "";

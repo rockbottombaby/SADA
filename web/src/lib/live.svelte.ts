@@ -61,8 +61,10 @@ export async function fetchLive(path: string, signal?: AbortSignal): Promise<Liv
   if (!base) throw new Error('Live data needs the SADA proxy (Settings → Proxy URL).');
   const r = await fetch(`${base}/live/${path}`, { signal });
   if (r.status === 404) throw new Error(`Live lookup not allowed or not found: ${path}`);
-  if (!r.ok) throw new Error(r.status === 429 ? 'ADSB.lol is busy; try again in a few seconds.' : `Live data unavailable (${r.status}).`);
-  const d = await r.json();
+  if (!r.ok) throw new Error(r.status === 429 ? 'The live feed is busy; try again in a few seconds.' : `Live data unavailable (${r.status}).`);
+  // parse by hand: a body the browser could not decode (a compression it does not support) must read as a clear error
+  let d: any;
+  try { d = JSON.parse(await r.text()); } catch { throw new Error('Live data arrived unreadable; retrying shortly.'); }
   return (d.ac ?? []).map(shape).filter(Boolean) as LiveAc[];
 }
 
