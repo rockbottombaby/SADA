@@ -29,8 +29,8 @@
     | { kind: 'zone'; overview: any }
     | { kind: 'flight'; leg: Leg }
     | { kind: 'chip'; text: string; pending?: string };   // pending = tool name while that step runs
-  type Turn = { role: 'user' | 'assistant'; text: string; cards: Card[]; usd?: number; profile?: string; verify?: any };
-  type ChatT = { id: string; title: string; turns: Turn[]; history: any[]; usage: Usage; created: number; sig?: string; case?: CaseFile };
+  type Turn = { role: 'user' | 'assistant'; text: string; cards: Card[]; usd?: number; profile?: string; verify?: any; hint?: 'opensky' | 'census' };
+  type ChatT = { id: string; title: string; turns: Turn[]; history: any[]; usage: Usage; created: number; sig?: string; case?: CaseFile; hinted?: string[] };
 
   const newChat = (): ChatT => ({ id: Math.random().toString(36).slice(2, 10), title: 'New chat', turns: [], history: [], usage: emptyUsage(), created: Date.now() });
   let chats: ChatT[] = $state([newChat()]);
@@ -38,6 +38,17 @@
   let input = $state('');
   let running = $state(false);
   let useWeb = $state(true);
+  // which sources the assistant can reach right now; OpenSky and Census are free and make its searches far more complete
+  const sources = $derived.by(() => {
+    const st = app.ctx ? sourceStatus(app.ctx) : { census: false, opensky: false, openskyRoute: false };
+    return [
+      { id: 'archive', label: 'Flight archive', on: true, why: 'the SADA flight database' },
+      { id: 'web', label: 'Web search', on: useWeb, why: 'operators, contracts, news' },
+      { id: 'opensky', label: 'OpenSky', on: st.opensky && st.openskyRoute, why: 'a second network with worldwide coverage: flights of any aircraft or airport, incl. days this archive lacks' },
+      { id: 'census', label: 'US exports', on: st.census, why: 'US Census arms-export figures by month and port' },
+    ];
+  });
+  const sourcesOn = $derived(sources.filter(s => s.on).length);
   let abort: AbortController | null = null;
   let scroller: HTMLDivElement;
   // follow the answer while the reader is at the bottom; when they have scrolled up to read, leave them there and offer
@@ -138,6 +149,7 @@
     chat.sig = sig;
     cur.profile = prof.provider === 'openrouter' ? `${prof.label.replace(/ · (fast|balanced|deep)$/, '')} · OpenRouter` : `${prof.label.replace(/ \(.*\)$/, '')} · Anthropic key`;
     const before = { ...chat.usage };
+    let gaps = 0, usedCensus = false;
     try {
       const out = await runAgent({
         apiKey: activeKey(), profile: prof, ctx: app.ctx!, web: useWeb, signal: abort.signal, extraTools: [...UI_TOOLS, caseTool(() => (chat.case ??= { items: [] }), persist)],
@@ -166,6 +178,11 @@ Use the map_* tools to show what your answer is about. Each call REPLACES what i
           }
           if (e.type === 'tool_result' && !e.error) {
             const r: any = e.result, inp: any = e.input;
+            // the harness watches for what this archive could not answer: unknown leg ends, empty results, days outside coverage
+            const legsOf = Array.isArray(r) ? r : Array.isArray(r?.flights) ? r.flights : Array.isArray(r?.legs) ? r.legs : [];
+            if (!legsOf.length && !e.name?.startsWith('map_') && !e.name?.startsWith('opensky_') && /flight|aircraft|airport|route|zone/.test(e.name || '')) gaps++;
+            if (legsOf.some((l: any) => l && typeof l === 'object' && 'from_code' in l && (!l.from_code || !l.to_code))) gaps++;
+            if (/^(us_exports|export_flight_crosscheck)$/.test(e.name || '')) usedCensus = true;
             if (Array.isArray(r) && e.name !== 'run_sql' && (r.length === 0 || (r[0]?.leg_id && r[0]?.t0 != null))) { cur.cards.push({ kind: 'legs', tool: e.name!, legs: r, title: legsTitle(e.name!, inp, r.length) }); app.lastLegs = { title: legsTitle(e.name!, inp, r.length), legs: r }; }
             else if (e.name === 'zone_overview') cur.cards.push({ kind: 'zone', overview: r });
             else if (e.name === 'flight_dossier') cur.cards.push({ kind: 'flight', leg: r.leg });
@@ -193,6 +210,11 @@ Use the map_* tools to show what your answer is about. Each call REPLACES what i
       chat.history = out.messages;
       cur.text = out.text || cur.text;
       if (out.report) cur.verify = out.report;
+      // one hint per chat per source: when the archive came up short and a free source that would fill the gap is not connected
+      const src = Object.fromEntries(sources.map(x => [x.id, x.on]));
+      const gapWords = /unknown|coverage (gap|start|end)|not (found|in the (data|archive|database))|no flights|outside the (data|archive|dataset)|went dark/i;
+      if (!src.opensky && !(chat.hinted ?? []).includes('opensky') && (gaps > 0 || gapWords.test(cur.text))) { cur.hint = 'opensky'; (chat.hinted ??= []).push('opensky'); }
+      else if (!src.census && !(chat.hinted ?? []).includes('census') && !usedCensus && /\b(export|exports|munition|munitions|ammunition|arms|weapon|weapons|shipment)/i.test(q)) { cur.hint = 'census'; (chat.hinted ??= []).push('census'); }
     } catch (e) {
       cur.cards = cur.cards.filter((c: any) => !c.pending);
       const stop = e instanceof StoppedError || abort?.signal.aborted;
@@ -272,6 +294,12 @@ Use the map_* tools to show what your answer is about. Each call REPLACES what i
         <p>The assistant queries the same data as the Explore panel, shows results on the map, and checks every flight it names against the data.</p>
         {#if hasKey()}
           <div class="sugs">{#each SUGGESTIONS as s, i}<button class="sug" onclick={() => useSuggestion(s)}><em>0{i + 1}</em><span>{s}</span><i>→</i></button>{/each}</div>
+          <div class="srcs">
+            <div class="srow">{#each sources as src (src.id)}<span class="src" class:on={src.on} title={src.why}><i></i>{src.label}</span>{/each}</div>
+            {#if sourcesOn < sources.length}
+              <p class="srcnote">{sources.filter(s => !s.on).map(s => s.label).join(' and ')} {sourcesOn < sources.length - 1 ? 'are' : 'is'} off. Connected sources make the assistant’s searches far more complete; OpenSky and US exports are free. <button class="link" onclick={() => (app.settingsOpen = true)}>Connect in Settings</button></p>
+            {/if}
+          </div>
         {:else}
           <div class="keycard">
             <b>Sign in to start</b>
@@ -341,6 +369,14 @@ Use the map_* tools to show what your answer is about. Each call REPLACES what i
               {#if t.phaseAt}<span class="wc">{clock(nowTick - t.phaseAt)}</span>{/if}
             </div>
           {/if}
+          {#if t.hint && !sources.find(x => x.id === t.hint)?.on}
+            <div class="hint" role="note">
+              <i></i>
+              {#if t.hint === 'opensky'}<span><b>OpenSky is not connected.</b> It is a second network with worldwide coverage and would show flights this archive lost in coverage gaps or does not hold. Free account.</span>
+              {:else}<span><b>US export figures are not connected.</b> Census trade data would put declared arms exports by month and port next to these flights. Free key.</span>{/if}
+              <button class="link" onclick={() => (app.settingsOpen = true)}>Connect in Settings</button>
+            </div>
+          {/if}
           {#if t.verify || t.usd != null}
             <div class="meta">
               {#if t.verify}{#if t.verify.ok}{#if t.verify.checked > 0}<span class="ok" title="Every flight fact in this answer was found in the data">✓ {t.verify.checked} facts verified</span>{/if}
@@ -375,6 +411,7 @@ Use the map_* tools to show what your answer is about. Each call REPLACES what i
         <optgroup label={settings.openrouterKey ? 'OpenRouter' : 'OpenRouter (not signed in)'}>{#each OPENROUTER_MODELS as m}<option value={`openrouter:${m.id}`} disabled={!settings.openrouterKey}>{m.label.replace(/ · (fast|balanced|deep)$/, '')} · OpenRouter</option>{/each}</optgroup>
       </select>
       <button type="button" class="pill" class:on={useWeb} title="Allow web search" onclick={() => (useWeb = !useWeb)}>Web {useWeb ? 'on' : 'off'}</button>
+      <button type="button" class="pill srcpill" class:all={sourcesOn === sources.length} title={sources.map(s => `${s.on ? '●' : '○'} ${s.label}`).join('\n') + (sourcesOn < sources.length ? '\nConnect more in Settings' : '')} onclick={() => (app.settingsOpen = true)}><i></i>{sourcesOn}/{sources.length} sources</button>
       <span class="sp"></span>
       <span class="cost" title="Estimated cost of this chat">{money(active.usage.usd)}</span>
     </div>
@@ -416,9 +453,20 @@ Use the map_* tools to show what your answer is about. Each call REPLACES what i
   .keycard { margin-top: 18px; padding: 14px; border: 1px solid var(--line2); border-radius: var(--r); display: flex; flex-direction: column; gap: 6px; align-items: flex-start; font-size: 13px; }
   .keycard .link { border: 0; padding: 0; background: none; color: var(--muted); text-decoration: underline; text-transform: none; letter-spacing: 0; font-size: 11.5px; cursor: pointer; align-self: flex-start; margin-top: 2px; }
   .keycard p { margin: 0 0 6px !important; color: var(--muted); font-size: 12px !important; line-height: 1.55 !important; }
+  .srcs { margin-top: 16px; padding-top: 12px; border-top: 1px solid var(--line); }
+  .srow { display: flex; flex-wrap: wrap; gap: 6px 14px; }
+  .src { display: inline-flex; align-items: center; gap: 6px; font-size: 10px; text-transform: uppercase; letter-spacing: 1.2px; color: var(--faint); cursor: default; }
+  .src i { width: 6px; height: 6px; border-radius: 50%; border: 1px solid var(--faint); } .src.on { color: var(--text); } .src.on i { background: var(--ok); border-color: var(--ok); }
+  .srcnote { margin: 8px 0 0 !important; font-size: 11.5px !important; }
+  .srcnote .link { border: 0; padding: 0; background: none; color: var(--ink); text-decoration: underline; text-transform: none; letter-spacing: 0; font-size: 11.5px; cursor: pointer; }
+  .srcpill { display: inline-flex; align-items: center; gap: 6px; } .srcpill i { width: 5px; height: 5px; border-radius: 50%; background: var(--obs); } .srcpill.all i { background: var(--ok); }
   .md :global(.ev) { display: inline-block; font-family: var(--mono); font-size: 9.5px; letter-spacing: 0; padding: 0 5px; margin: 0 1px; border: 1px solid var(--line2); border-radius: 3px; color: var(--muted); vertical-align: 1px; text-transform: none; }
   .md :global(.ev:hover) { color: var(--ink); border-color: var(--ink); background: transparent; }
   .meta .warn { color: var(--obs); }
+  .hint { display: flex; align-items: flex-start; gap: 8px; margin: 10px 0 2px; padding: 8px 10px; border: 1px dashed var(--line2); border-radius: var(--r); font-size: 11.5px; line-height: 1.5; color: var(--muted); }
+  .hint i { width: 6px; height: 6px; border-radius: 50%; background: var(--obs); flex: none; margin-top: 6px; } .hint b { color: var(--text); font-weight: 500; }
+  .hint .link { border: 0; padding: 0; background: none; color: var(--ink); text-decoration: underline; text-transform: none; letter-spacing: 0; font-size: 11.5px; cursor: pointer; flex: none; margin-left: auto; white-space: nowrap; }
+  @media (max-width: 900px) { .hint { flex-wrap: wrap; } .hint .link { margin-left: 14px; } }
   .keynote { color: var(--muted) !important; margin-top: 16px !important; font-size: 11.5px !important; line-height: 1.55 !important; border-left: 1px solid var(--line2); padding-left: 10px; }
 
   /* the person's questions are solid, so each turn's start is easy to find while scrolling */
@@ -493,7 +541,8 @@ Use the map_* tools to show what your answer is about. Each call REPLACES what i
   .send:disabled { border-color: var(--line2); opacity: .5; } .send.stop { font-size: 9px; }
   .row { display: flex; gap: 6px; align-items: center; }
   .pill { font-size: 9.5px; padding: 4px 9px; color: var(--muted); border: 1px solid var(--line2); border-radius: var(--r); text-transform: uppercase; letter-spacing: 1.4px; }
-  select.pill { padding: 4px 6px; max-width: 46%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; } button.pill.on { color: var(--ink); border-color: var(--ink); }
+  button.pill { white-space: nowrap; flex: none; }
+  select.pill { padding: 4px 6px; flex: 1 1 auto; min-width: 0; max-width: 46%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; } button.pill.on { color: var(--ink); border-color: var(--ink); }
   .sp { flex: 1; } .cost { color: var(--faint); font-size: 10.5px; font-family: var(--mono); }
   /* phones: a full-screen panel; everything a finger can hit is at least 40 px */
   @media (max-width: 900px) {
