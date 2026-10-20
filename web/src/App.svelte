@@ -17,6 +17,7 @@
   import Memorial from './lib/Memorial.svelte';
   import { app, selectLeg } from './lib/state.svelte';
   import { settings, saveSettings } from './lib/prefs.svelte';
+  import { setLive } from './lib/live.svelte';
   import { finishOpenRouterSignIn } from './lib/openrouter';
   import { openDb, loadManifest, queryWithin, cancelCurrent, pending } from './lib/db';
   import { warmCache } from './lib/tools';
@@ -64,6 +65,8 @@
       await setupViews(ctx);
       step('Ready', 1);
       app.ctx = ctx;
+      // every session starts with the live layer on: what is in the air right now, from the first second
+      if (settings.proxyBase) setLive(true);
       if (import.meta.env.DEV) (window as any).__oam = { app, ctx, selectLeg, cancelCurrent, tools: (await import('./lib/tools')).TOOLS, uiTools: (await import('./lib/uiTools')).UI_TOOLS, allTools: [...(await import('./lib/tools')).TOOLS, ...(await import('./lib/sources')).SOURCE_TOOLS, ...(await import('./lib/playbooks')).PLAYBOOKS, ...(await import('./lib/uiTools')).UI_TOOLS], trailApi: await import('./lib/trail.svelte'), stateApi: await import('./lib/state.svelte'), dockApi: await import('./lib/dock.svelte'), liveApi: await import('./lib/live.svelte'), orApi: await import('./lib/openrouter'), sessionApi: await import('./lib/session.svelte'), trailSteps: () => (currentTrail()?.steps ?? []).map(s => ({ ...s })) };   // test hook (dev server only)
       // start on the latest week: whole-archive queries are possible but slow in the browser
       // no preset period: the user chooses one in the search form

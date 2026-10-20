@@ -649,6 +649,7 @@
   .chooser .x { width: 36px; height: 36px; padding: 0; border: 0; font-size: 12px; letter-spacing: 0; }
   .chooser .cl { overflow-y: auto; padding: 0 10px 8px; }
   /* phones: a compact toolbar, no zoom buttons (pinch), the live card and dock as bottom sheets, no hover label */
+  .scene .short { display: none; }   /* phones show the short text instead (below) */
   @media (max-width: 900px) {
     /* a 3 × 2 grid of equal cells, every label on one line */
     .toolbar { top: 8px; left: 8px; right: 8px; max-width: none; display: grid; grid-template-columns: repeat(3, 1fr); }
@@ -686,5 +687,4 @@
   .map :global(.maplibregl-ctrl-attrib a) { color: var(--text); border: 0; }
   @media (hover: none) { .toolbar button:hover { background: transparent; color: var(--muted); } .toolbar button.on:hover { color: var(--ink); } .map :global(.maplibregl-ctrl-group button:hover) { background-color: transparent; } .scene .sum:hover { color: var(--muted); } .livestat .lf button:hover { background: transparent; color: var(--muted); } .livestat .lf button.on:hover { color: var(--ink); background: rgba(232,232,232,.08); } }
   .unsel { border: 0; padding: 0 4px; margin-left: 6px; font-size: 10px; color: var(--muted); letter-spacing: 0; line-height: 1; vertical-align: middle; } .unsel:hover { color: var(--ink); background: none; }
-  .scene .short { display: none; }
 </style>
