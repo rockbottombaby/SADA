@@ -17,7 +17,7 @@ export const settings = $state({
   censusKey: read('oam.censusKey'),
   openskyId: read('oam.openskyId'),
   openskySecret: read('oam.openskySecret'),
-  openskyBase: read('oam.openskyBase'),
+  openskyBase: migrate('oam.openskyBase', /sslip\.io|workers\.dev/, ''),   // normally empty: the proxy's /opensky route is derived from proxyBase
   // the SADA proxy (oam/server/proxy.sh): live ADSB.lol data and OpenSky, which browsers cannot reach directly
   proxyBase: migrate('oam.proxyBase', /sslip\.io/, import.meta.env.VITE_PROXY_BASE || ''),
 });
@@ -25,8 +25,8 @@ export const settings = $state({
 // those are gone, so such a saved value is replaced by the current default and stored again
 function migrate(key: string, stale: RegExp, def: string) {
   const v = read(key, def);
-  if (!stale.test(v) || !def) return v;
-  try { localStorage.setItem(key, def); } catch { /* storage blocked */ }
+  if (!stale.test(v)) return v;
+  try { if (def) localStorage.setItem(key, def); else localStorage.removeItem(key); } catch { /* storage blocked */ }
   return def;
 }
 

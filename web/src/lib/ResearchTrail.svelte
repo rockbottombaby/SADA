@@ -31,7 +31,7 @@
     <div class="top">
       <span class="dot"></span>
       <span class="label">Research</span>
-      <span class="sum static">Nothing yet — ask the assistant a question and its steps appear here as it works.</span>
+      <span class="sum static"><span class="long">Nothing yet — ask the assistant a question and its steps appear here as it works.</span><span class="short">Nothing yet — ask the assistant</span></span>
     </div>
   </div>
 {:else}
@@ -93,6 +93,9 @@
         <button class="tick {s.status}" class:focus={trail.focus === s.i} role="listitem"
           title={`${s.i + 1}. ${short(s.label)}${s.detail ? ' — ' + s.detail : ''}`} onclick={() => pick(s.i)}>{s.i + 1}</button>
       {/each}
+      <span class="mob sp"></span>
+      <button class="tb mob" class:on={trail.follow} onclick={() => (trail.follow = !trail.follow)}>{trail.follow ? 'Following' : 'Follow'}</button>
+      {#if mode === 'normal'}<button class="tb mob" onclick={() => (trail.open = !trail.open)}>{trail.open ? 'Less' : 'All steps'}</button>{/if}
     </div>
       </div>
 
@@ -176,4 +179,17 @@
   .max .list li button { padding: 9px 4px; }
   @media (prefers-reduced-motion: reduce) { .rp, .busy .dot, .spin, .tick.running { animation: none; } }
   @media (hover: none) { .list li button:hover { background: transparent; } .sum:hover { color: var(--muted); } }
+  .mob { display: none; } .short { display: none; }
+  /* phones: the card stacks (step above the ticks), the text buttons sit with the ticks, nothing is cut off */
+  @media (max-width: 900px) {
+    .rp { padding: 9px 10px 10px; } .long { display: none; } .short { display: inline; }
+    .top .tb { display: none; }
+    .mid { flex-direction: column; gap: 8px; }
+    .ticks { max-width: none; justify-content: flex-start; align-items: center; width: 100%; }
+    .ticks .mob { display: inline-flex; } .ticks .sp { display: block; flex: 1; }
+    .what { white-space: normal; }
+    .now { padding: 8px 10px; }
+    .list { max-height: 40vh; }
+    .rp.max { padding: 12px 12px; } .max .q { font-size: 15px; }
+  }
 </style>

@@ -521,7 +521,7 @@
   <ResearchTrail />
   {#if !app.map.scene && app.map.history.length <= 1}
     <div class="scene min empty">
-      <div class="sh"><span class="label">On the map</span><span class="sum static">Nothing drawn yet — find flights on the left, or ask the assistant.</span></div>
+      <div class="sh"><span class="label">On the map</span><span class="sum static"><span class="long">Nothing drawn yet — find flights on the left, or ask the assistant.</span><span class="short">Nothing drawn yet — search or ask</span></span></div>
     </div>
   {:else}
     <div class="scene {sceneMode}">
@@ -626,7 +626,7 @@
   .scene .sum { flex: 1; min-width: 0; border: 0; padding: 2px 0; text-align: left; text-transform: none; letter-spacing: 0; font-size: 12px; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .scene .sum:hover { color: var(--ink); background: none; }
   .scene .sum.static { cursor: default; } .scene .sum.static:hover { color: var(--muted); }
-  .scene.empty { padding: 6px 12px; }
+  .scene.empty { padding: 6px 12px; min-height: 36px; justify-content: center; }   /* the same height as the folded research bar */
   .scene .meta { font-size: 10.5px; color: var(--faint); font-family: var(--mono); white-space: nowrap; flex: none; }
   .scene .x { border: 0; padding: 3px 4px; font-size: 11px; color: var(--muted); letter-spacing: 0; flex: none; }
   .flist { flex: 1; min-height: 0; overflow: auto; border-top: 1px solid var(--line); margin: 0 -6px; }
@@ -660,6 +660,8 @@
     .archint { display: none; }
     .hint { top: 88px; left: 8px; right: 8px; text-align: center; }
     .dock { left: 8px; right: 8px; bottom: 30px; } .dock.full { top: 88px; }   /* a strip under the dock for the ⓘ, like the desktop */
+    .scene .long { display: none; } .scene .short { display: inline; }
+    .legend { margin-left: 0; padding-left: 0; border-left: 0; width: 100%; padding-top: 6px; border-top: 1px solid var(--line); }   /* its own line, no stray divider */
   }
   /* the amber beta note: below the zoom buttons on the desktop (nothing else uses that column), centred above the dock on phones */
   .betanote { position: absolute; z-index: 4; bottom: 4px; right: 36px; display: inline-flex; align-items: center; gap: 7px; padding: 4px 6px 4px 9px; background: rgba(18,18,18,.85); border: 1px solid rgba(242,193,78,.45); border-radius: 999px; color: var(--obs); font-size: 10px; letter-spacing: .4px; white-space: nowrap; }
@@ -684,4 +686,5 @@
   .map :global(.maplibregl-ctrl-attrib a) { color: var(--text); border: 0; }
   @media (hover: none) { .toolbar button:hover { background: transparent; color: var(--muted); } .toolbar button.on:hover { color: var(--ink); } .map :global(.maplibregl-ctrl-group button:hover) { background-color: transparent; } .scene .sum:hover { color: var(--muted); } .livestat .lf button:hover { background: transparent; color: var(--muted); } .livestat .lf button.on:hover { color: var(--ink); background: rgba(232,232,232,.08); } }
   .unsel { border: 0; padding: 0 4px; margin-left: 6px; font-size: 10px; color: var(--muted); letter-spacing: 0; line-height: 1; vertical-align: middle; } .unsel:hover { color: var(--ink); background: none; }
+  .scene .short { display: none; }
 </style>

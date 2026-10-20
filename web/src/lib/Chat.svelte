@@ -106,7 +106,7 @@
       `- map: ${describeScene()}`,
       `- selected flight: ${app.selected ? `leg_id ${app.selected.leg_id} (${app.selected.callsigns || ''} ${app.selected.reg || ''})`.replace(/\s+\)/, ')') : 'none'}`,
       `- left panel: ${view}`,
-      `- sources: flight database yes; web search ${useWeb ? 'on' : 'off'}; US Census ${st.census ? 'connected' : 'no key'}; OpenSky ${!st.opensky ? 'no key' : settings.openskyBase ? 'connected' : 'key set but blocked in the browser (needs a proxy URL in Settings)'}`,
+      `- sources: flight database yes; web search ${useWeb ? 'on' : 'off'}; US Census ${st.census ? 'connected' : 'no key'}; OpenSky ${!st.opensky ? 'no key' : st.openskyRoute ? 'connected' : 'key set but blocked in the browser (needs the live-data proxy URL under Settings → Advanced)'}`,
       `- case file: ${caseSummary(active.case)}`,
     ].join('\n');
   }

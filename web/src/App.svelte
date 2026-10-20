@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { onMount } from 'svelte';
+  import { onMount, untrack } from 'svelte';
   import { polygonToCells } from 'h3-js';
   import MapView from './lib/MapView.svelte';
   import Explore from './lib/Explore.svelte';
@@ -28,9 +28,10 @@
   // phones and small tablets: the three panels become tabs over a full-screen map; the dock starts folded
   import { setWin } from './lib/dock.svelte';
   import { trail } from './lib/trail.svelte';
+  // (untracked: folding the dock reads its state, which must not make this effect re-run and fold it again on every change)
   $effect(() => {
     const mq = matchMedia('(max-width: 900px)');
-    const apply = () => { app.mobile = mq.matches; if (mq.matches) { setWin('research', 'min'); setWin('scene', 'min'); } };
+    const apply = () => untrack(() => { app.mobile = mq.matches; if (mq.matches) { setWin('research', 'min'); setWin('scene', 'min'); } });
     apply(); mq.addEventListener('change', apply);
     return () => mq.removeEventListener('change', apply);
   });

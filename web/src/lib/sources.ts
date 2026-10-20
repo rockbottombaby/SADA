@@ -55,7 +55,7 @@ async function opensky(ctx: Ctx, path: string, params: Record<string, string | n
   let r: Response;
   try { r = await fetch(`${base}${path}?${q}`, { headers: { Authorization: `Bearer ${osToken.v}` } }); }
   catch (e) {
-    throw new Error(`OpenSky could not be reached (${String(e)}). OpenSky blocks direct browser requests; use the MCP server, or set an OpenSky proxy URL in Settings.`);
+    throw new Error(`OpenSky could not be reached (${String(e)}). OpenSky blocks direct browser requests; check the live-data proxy URL under Settings → Advanced, or use the MCP server.`);
   }
   if (r.status === 404) return [];                         // OpenSky: no flights in this interval
   if (r.status === 429) throw new Error('OpenSky daily credit limit reached (4000 credits/day). Try again tomorrow or use a shorter interval.');
@@ -91,7 +91,7 @@ export const PORT_AIRPORTS: Record<string, string[]> = {
 // ---------- ADSB.lol live API (through the SADA proxy: no CORS on their API) ----------
 async function liveFetch(ctx: Ctx, path: string) {
   const base = (keys(ctx).proxyBase || '').replace(/\/$/, '');
-  if (!base) throw new Error('Live data needs the SADA proxy URL (Settings → SADA proxy URL, or OAM_PROXY_BASE for the MCP server).');
+  if (!base) throw new Error('Live data needs the live-data proxy URL (Settings → Advanced, or OAM_PROXY_BASE for the MCP server).');
   const r = await fetch(`${base}/live/${path}`);
   if (r.status === 404) throw new Error(`live lookup not allowed: ${path}`);
   if (!r.ok) throw new Error(r.status === 429 ? 'ADSB.lol is busy; try again in a few seconds' : `live data unavailable (${r.status})`);
@@ -381,5 +381,6 @@ export function sourceStatus(ctx: Ctx) {
   return {
     census: !!k.census,
     opensky: !!(k.openskyId && k.openskySecret),
+    openskyRoute: !!k.openskyBase,      // the proxy relays OpenSky (browsers cannot call it directly)
   };
 }
