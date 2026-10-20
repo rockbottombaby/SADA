@@ -40,6 +40,17 @@
   let useWeb = $state(true);
   let abort: AbortController | null = null;
   let scroller: HTMLDivElement;
+  // follow the answer while the reader is at the bottom; when they have scrolled up to read, leave them there and offer
+  // a jump to the newest content instead
+  let atBottom = $state(true), unseen = $state(false);
+  const onScroll = () => { atBottom = scroller.scrollHeight - scroller.scrollTop - scroller.clientHeight < 40; if (atBottom) unseen = false; };
+  function follow(force = false) {
+    if (!scroller) return;
+    if (force || atBottom) requestAnimationFrame(() => { scroller.scrollTo({ top: scroller.scrollHeight }); atBottom = true; unseen = false; });
+    else unseen = true;
+  }
+  // jumping re-attaches the follow at once, so content that arrives during the smooth scroll keeps the reader at the bottom
+  const jump = () => { atBottom = true; unseen = false; scroller?.scrollTo({ top: scroller.scrollHeight, behavior: 'smooth' }); };
   let composerEl: HTMLTextAreaElement | undefined = $state();
   let expanded: Record<string, boolean> = $state({});
   // a ticking clock for the "what it is doing" line while an answer is being produced
@@ -107,6 +118,7 @@
     const q = (text ?? input).trim();
     if (!q || running) return;
     if (!hasKey()) { app.keySetupOpen = true; return; }
+    follow(true);
     input = ''; running = true; abort = new AbortController();
     if (composerEl) composerEl.style.height = 'auto';   // shrink the auto-grown box back
     const chat = active;
@@ -175,7 +187,7 @@ Use the map_* tools to show what your answer is about. Each call REPLACES what i
             chat.usage = { ...before, usd: before.usd + e.usage.usd, calls: before.calls + e.usage.calls, input: before.input + e.usage.input,
               output: before.output + e.usage.output, cacheRead: before.cacheRead + e.usage.cacheRead, cacheWrite: before.cacheWrite + e.usage.cacheWrite, searches: before.searches + e.usage.searches };
           } else if (e.type === 'verify') cur.verify = e.report;
-          scroller?.scrollTo({ top: scroller.scrollHeight });
+          follow();
         },
       });
       chat.history = out.messages;
@@ -250,7 +262,8 @@ Use the map_* tools to show what your answer is about. Each call REPLACES what i
     </div>
   {/if}
   <div class="caution" role="note"><i></i>Don’t rely on the AI: models hallucinate, the data doesn’t. Be the brains of the operation.</div>
-  <div class="msgs" bind:this={scroller}>
+  <div class="thread">
+  <div class="msgs" bind:this={scroller} onscroll={onScroll}>
     {#if !active.turns.length}
       <div class="intro">
         <img class="eye big" src="/eye-64.png" width="44" height="44" alt="" />
@@ -339,6 +352,12 @@ Use the map_* tools to show what your answer is about. Each call REPLACES what i
         </div>
       {/if}
     {/each}
+  </div>
+  {#if !atBottom}
+    <button class="jump" class:fresh={unseen} onclick={jump} title={unseen ? 'New content below' : 'Jump to the latest'} aria-label="Jump to the latest">
+      <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12l7 7 7-7"/></svg>
+    </button>
+  {/if}
   </div>
 
   <form class="composer" onsubmit={e => { e.preventDefault(); send(); }}>
@@ -486,4 +505,11 @@ Use the map_* tools to show what your answer is about. Each call REPLACES what i
   .caution { display: flex; align-items: center; gap: 8px; padding: 7px 18px; font-size: 11px; line-height: 1.4; color: var(--obs); border-bottom: 1px solid var(--line); flex: none; }
   .caution i { width: 6px; height: 6px; border-radius: 50%; background: var(--obs); flex: none; }
   @media (hover: none) { .tab .t:hover { color: inherit; } .sug:hover { color: inherit; } .sug:hover i { transform: none; color: inherit; } .cbar:hover, .sh:hover, .more:hover { color: inherit; } .fl:hover { color: inherit; border-color: var(--line2); } }
+  .thread { position: relative; flex: 1; min-height: 0; display: flex; flex-direction: column; }
+  .thread::after { content: ''; position: absolute; left: 0; right: 0; bottom: 0; height: 28px; background: linear-gradient(to bottom, transparent, var(--bg)); pointer-events: none; }   /* the thread fades out above the composer */
+  .jump { position: absolute; left: 50%; bottom: 14px; transform: translateX(-50%); width: 40px; height: 40px; padding: 0; border-radius: 50%; display: grid; place-items: center;
+    background: #1a1a1a; border: 1px solid var(--line2); color: var(--muted); box-shadow: 0 8px 24px rgba(0,0,0,.6), 0 0 0 4px var(--bg); animation: jumpin .2s ease-out; }
+  .jump:hover { color: var(--ink); background: #222; border-color: var(--ink); }
+  .jump.fresh { color: var(--ink); border-color: var(--ink); background: #202020; }
+  @keyframes jumpin { from { opacity: 0; transform: translate(-50%, 6px); } }
 </style>
