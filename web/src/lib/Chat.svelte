@@ -28,7 +28,11 @@
     | { kind: 'legs'; tool: string; legs: Leg[]; title: string }
     | { kind: 'zone'; overview: any }
     | { kind: 'flight'; leg: Leg }
-    | { kind: 'chip'; text: string; pending?: string };   // pending = tool name while that step runs
+    | { kind: 'chip'; text: string; pending?: string }    // older sessions: a flat step line
+    // one step of the assistant's work, with what it thought before it, its arguments, progress, result and any lookups the
+    // harness ran on its own because of it (nested), so the whole trail can be unfolded
+    | { kind: 'step'; name: string; text: string; input?: any; status: 'running' | 'done' | 'error'; started: number; ended?: number;
+        note?: string; thought?: string; result?: string; progress?: string[]; children?: Card[]; evidenceId?: string; auto?: boolean };
   type Turn = { role: 'user' | 'assistant'; text: string; cards: Card[]; usd?: number; profile?: string; verify?: any; hint?: 'opensky' | 'census' };
   type ChatT = { id: string; title: string; turns: Turn[]; history: any[]; usage: Usage; created: number; sig?: string; case?: CaseFile; hinted?: string[] };
 
@@ -150,6 +154,12 @@
     cur.profile = prof.provider === 'openrouter' ? `${prof.label.replace(/ · (fast|balanced|deep)$/, '')} · OpenRouter` : `${prof.label.replace(/ \(.*\)$/, '')} · Anthropic key`;
     const before = { ...chat.usage };
     let gaps = 0, usedCensus = false;
+    let thought = '';   // reasoning streamed since the last step; it belongs to the next step (or to the answer)
+    const steps = () => cur.cards.filter((c: any) => c.kind === 'step') as Extract<Card, { kind: 'step' }>[];
+    const stepFor = (name?: string, running = true) => [...steps()].reverse().find(c => c.name === name && (!running || c.status === 'running'));
+    // the model's words and reasoning so far become the note of the step that follows them; the answer text starts afresh
+    const takeNotes = () => { const note = cur.text.trim(), th = thought.trim(); cur.text = ''; thought = ''; return { note: note || undefined, thought: th || undefined }; };
+    const addStep = (c: Omit<Extract<Card, { kind: 'step' }>, 'kind' | 'started'> & { started?: number }) => { const st = { kind: 'step' as const, started: Date.now(), ...c }; cur.cards.push(st); return st; };
     try {
       const out = await runAgent({
         apiKey: activeKey(), profile: prof, ctx: app.ctx!, web: useWeb, signal: abort.signal, extraTools: [...UI_TOOLS, caseTool(() => (chat.case ??= { items: [] }), persist)],
@@ -158,47 +168,64 @@ Use the map_* tools to show what your answer is about. Each call REPLACES what i
         messages: chat.history,
         onEvent: e => {
           if (e.type === 'text') cur.text += e.text;
+          else if (e.type === 'thinking') thought += e.text;
           else if (e.type === 'server_tool') {
             const q = String((e.input as any)?.query ?? (e.input as any)?.url ?? 'search');
-            cur.cards.push({ kind: 'chip', text: `Web · ${q}` }); setActivity({ text: `Searching the web: ${q}` }); trailWeb(chat.id, q);
+            addStep({ name: 'web_search', text: `Web · ${q}`, status: 'done', ended: Date.now(), ...takeNotes() }); setActivity({ text: `Searching the web: ${q}` }); trailWeb(chat.id, q);
           } else if (e.type === 'tool_call') {
             // show the step as it starts, in plain words, and on the globe
             const act = describeCall(e.name!, e.input);
-            if (!e.name!.startsWith('map_')) cur.cards.push({ kind: 'chip', text: `${act.text}…`, pending: e.name });
+            addStep({ name: e.name!, text: act.text, input: e.input, status: 'running', progress: [], children: [], ...takeNotes() });
             trailCall(chat.id, e.name!, act.text, e.input);
             cur.phase = act.text; cur.phaseAt = Date.now();
             setActivity(act);
           }
           if (e.type === 'phase') { cur.phase = e.text; cur.phaseAt = Date.now(); trailPhase(e.text!); return; }
-          if (e.type === 'progress') { trailProgress(chat.id, e.name!, e.text!, e.result as any); cur.phase = e.text; cur.phaseAt ??= Date.now(); if (app.map.activity) setActivity({ ...app.map.activity, text: e.text! }); return; }
-          if (e.type === 'tool_result') trailResult(chat.id, e.name!, e.input, e.result, e.error, e.evidenceId);
-          if (e.type === 'tool_result') {   // the step finished: replace its "…" placeholder with the result
-            const i = cur.cards.findIndex((c: any) => c.pending === e.name);
-            if (i >= 0) cur.cards.splice(i, 1);
+          if (e.type === 'progress') {
+            trailProgress(chat.id, e.name!, e.text!, e.result as any); cur.phase = e.text; cur.phaseAt ??= Date.now(); if (app.map.activity) setActivity({ ...app.map.activity, text: e.text! });
+            const st = stepFor(e.name); if (st) { st.progress ??= []; if (st.progress[st.progress.length - 1] !== e.text) st.progress.push(e.text!); if (st.progress.length > 8) st.progress.shift(); }
+            return;
           }
-          if (e.type === 'tool_result' && !e.error) {
+          if (e.type === 'tool_result' && e.auto) {   // a lookup the harness ran itself, nested under the step that prompted it
+            const parent = stepFor(e.parent, false);
+            const r: any = e.result;
+            const child: Card = { kind: 'step', name: e.name!, auto: true, started: Date.now(), ended: Date.now(), status: e.error ? 'error' : 'done', evidenceId: e.evidenceId,
+              text: `OpenSky · ${r?.reason ?? 'coverage gap'}`, result: e.error ? e.error.replace(/^Error: /, '').slice(0, 80) : `${r.flights.length} flight${r.flights.length === 1 ? '' : 's'}${r.flights.length ? ': ' + r.flights.slice(0, 3).map((f: any) => `${f.from ?? '?'}→${f.to ?? '?'}`).join(', ') : ''}` };
+            if (parent) (parent.children ??= []).push(child); else cur.cards.push(child);
+            trailResult(chat.id, e.name!, e.input, e.result, e.error, e.evidenceId);
+            follow(); return;
+          }
+          if (e.type === 'tool_result') trailResult(chat.id, e.name!, e.input, e.result, e.error, e.evidenceId);
+          if (e.type === 'tool_result') {   // the step finished: close it with its result in one line
+            const st = stepFor(e.name) ?? addStep({ name: e.name!, text: describeCall(e.name!, e.input).text, input: e.input, status: 'running' });
+            st.status = e.error ? 'error' : 'done'; st.ended = Date.now(); st.evidenceId = e.evidenceId;
             const r: any = e.result, inp: any = e.input;
-            // the harness watches for what this archive could not answer: unknown leg ends, empty results, days outside coverage
-            const legsOf = Array.isArray(r) ? r : Array.isArray(r?.flights) ? r.flights : Array.isArray(r?.legs) ? r.legs : [];
-            if (!legsOf.length && !e.name?.startsWith('map_') && !e.name?.startsWith('opensky_') && /flight|aircraft|airport|route|zone/.test(e.name || '')) gaps++;
-            if (legsOf.some((l: any) => l && typeof l === 'object' && 'from_code' in l && (!l.from_code || !l.to_code))) gaps++;
-            if (/^(us_exports|export_flight_crosscheck)$/.test(e.name || '')) usedCensus = true;
-            if (Array.isArray(r) && e.name !== 'run_sql' && (r.length === 0 || (r[0]?.leg_id && r[0]?.t0 != null))) { cur.cards.push({ kind: 'legs', tool: e.name!, legs: r, title: legsTitle(e.name!, inp, r.length) }); app.lastLegs = { title: legsTitle(e.name!, inp, r.length), legs: r }; }
-            else if (e.name === 'zone_overview') cur.cards.push({ kind: 'zone', overview: r });
-            else if (e.name === 'flight_dossier') cur.cards.push({ kind: 'flight', leg: r.leg });
-            else if (e.name?.startsWith('map_')) cur.cards.push({ kind: 'chip', text: `Map · ${e.name.replace('map_', '').replace(/_/g, ' ')}${r?.shown != null ? ': ' + r.shown : ''}` });
-            else if (e.name === 'us_exports') cur.cards.push({ kind: 'chip', text: `Census · US exports to ${r.country}, HS ${r.hs_code}, ${r.months}: $${Math.round(r.totals.total_value_usd).toLocaleString()} (air $${Math.round(r.totals.air_value_usd).toLocaleString()}) ` });
-            else if (e.name === 'case_file') cur.cards.push({ kind: 'chip', text: `Case · ${inp.action}${inp.kind ? ' ' + inp.kind.replace('_', ' ') : ''}${inp.id ? ' #' + inp.id : ''}${inp.status ? ' → ' + inp.status : ''}` });
-            else if (e.name === 'export_flight_crosscheck') cur.cards.push({ kind: 'chip', text: `Cross-check · ${r.country} HS ${r.hs_code} ${r.months}: ${r.ports.length} ports, $${Math.round(r.census_totals.air_value_usd).toLocaleString()} by air` });
-            else if (e.name === 'airport_movements') { const title = `${Number(r.total).toLocaleString()} flights at ${inp.airport} · ${r.period[0]} → ${r.period[1]}`; cur.cards.push({ kind: 'legs', tool: e.name, legs: r.flights, title }); app.lastLegs = { title, legs: r.flights }; }
-            else if (e.name === 'live_aircraft' && Array.isArray(r.aircraft)) showLive(r.aircraft.filter((x: any) => !x.military).map((x: any) => x.hex));
-            else if (e.name === 'find_flights') { const title = `${Number(r.totals.flights).toLocaleString()} flights · ${r.period[0]} → ${r.period[1]}`; cur.cards.push({ kind: 'legs', tool: e.name, legs: r.flights, title }); app.lastLegs = { title, legs: r.flights }; }
-            else if (e.name === 'us_contracts') cur.cards.push({ kind: 'chip', text: `Contracts · ${r.company}: ${r.awards_shown} ${r.scope === 'Department of Defense' ? 'DoD ' : ''}awards, $${Math.round(r.total_shown_usd).toLocaleString()} · USAspending` });
-            else if (e.name === 'aircraft_registry') cur.cards.push({ kind: 'chip', text: `Registry · ${r.company ? `${r.company}: ${r.aircraft_count} aircraft` : `${r.query}: ${r.aircraft?.[0]?.owner ?? r.aircraft?.[0]?.operator ?? 'not found'}`}` });
-            else if (e.name?.startsWith('opensky_')) cur.cards.push({ kind: 'chip', text: `OpenSky · ${r.flights.length} flights${r.airport ? ` ${r.direction === 'departure' ? 'from' : 'to'} ${r.airport}` : ` by ${r.icao24}`}` });
-            else cur.cards.push({ kind: 'chip', text: describeCall(e.name!, inp).text });
-          } else if (e.type === 'tool_result' && e.error) cur.cards.push({ kind: 'chip', text: `Error · ${e.name}: ${e.error.replace(/^Error: /, '').slice(0, 80)}` });
-          else if (e.type === 'notice') { cur.cards.push({ kind: 'chip', text: e.text! }); cur.phase = e.text!.replace(/…$/, ''); cur.phaseAt = Date.now(); }
+            if (e.error) st.result = e.error.replace(/^Error: /, '').slice(0, 100);
+            else {
+              // the harness watches for what this archive could not answer: unknown leg ends, empty results, days outside coverage
+              const legsOf = Array.isArray(r) ? r : Array.isArray(r?.flights) ? r.flights : Array.isArray(r?.legs) ? r.legs : [];
+              if (!legsOf.length && !e.name?.startsWith('map_') && !e.name?.startsWith('opensky_') && /flight|aircraft|airport|route|zone/.test(e.name || '')) gaps++;
+              if (legsOf.some((l: any) => l && typeof l === 'object' && 'from_code' in l && (!l.from_code || !l.to_code))) gaps++;
+              if (/^(us_exports|export_flight_crosscheck)$/.test(e.name || '')) usedCensus = true;
+              if (Array.isArray(r) && e.name !== 'run_sql' && (r.length === 0 || (r[0]?.leg_id && r[0]?.t0 != null))) { const title = legsTitle(e.name!, inp, r.length); cur.cards.push({ kind: 'legs', tool: e.name!, legs: r, title }); app.lastLegs = { title, legs: r }; st.result = title; }
+              else if (e.name === 'zone_overview') { cur.cards.push({ kind: 'zone', overview: r }); st.result = `${r.totals?.flights ?? '?'} flights`; }
+              else if (e.name === 'flight_dossier') { cur.cards.push({ kind: 'flight', leg: r.leg }); st.result = `${r.leg?.callsigns || r.leg?.reg || ''} ${r.leg?.from_code ?? '?'} → ${r.leg?.to_code ?? '?'}`.trim(); }
+              else if (e.name?.startsWith('map_')) st.result = r?.shown != null ? `${r.shown} shown` : 'done';
+              else if (e.name === 'us_exports') st.result = `US exports to ${r.country}, HS ${r.hs_code}, ${r.months}: $${Math.round(r.totals.total_value_usd).toLocaleString()} (air $${Math.round(r.totals.air_value_usd).toLocaleString()})`;
+              else if (e.name === 'case_file') st.result = `${inp.action}${inp.kind ? ' ' + inp.kind.replace('_', ' ') : ''}${inp.id ? ' #' + inp.id : ''}${inp.status ? ' → ' + inp.status : ''}`;
+              else if (e.name === 'export_flight_crosscheck') st.result = `${r.country} HS ${r.hs_code} ${r.months}: ${r.ports.length} ports, $${Math.round(r.census_totals.air_value_usd).toLocaleString()} by air`;
+              else if (e.name === 'airport_movements') { const title = `${Number(r.total).toLocaleString()} flights at ${inp.airport} · ${r.period[0]} → ${r.period[1]}`; cur.cards.push({ kind: 'legs', tool: e.name, legs: r.flights, title }); app.lastLegs = { title, legs: r.flights }; st.result = title; }
+              else if (e.name === 'live_aircraft' && Array.isArray(r.aircraft)) { showLive(r.aircraft.filter((x: any) => !x.military).map((x: any) => x.hex)); st.result = `${r.aircraft.length} aircraft`; }
+              else if (e.name === 'find_flights') { const title = `${Number(r.totals.flights).toLocaleString()} flights · ${r.period[0]} → ${r.period[1]}`; cur.cards.push({ kind: 'legs', tool: e.name, legs: r.flights, title }); app.lastLegs = { title, legs: r.flights }; st.result = title; }
+              else if (e.name === 'us_contracts') st.result = `${r.company}: ${r.awards_shown} ${r.scope === 'Department of Defense' ? 'DoD ' : ''}awards, $${Math.round(r.total_shown_usd).toLocaleString()}`;
+              else if (e.name === 'aircraft_registry') st.result = r.company ? `${r.company}: ${r.aircraft_count} aircraft` : `${r.query}: ${r.aircraft?.[0]?.owner ?? r.aircraft?.[0]?.operator ?? 'not found'}`;
+              else if (e.name?.startsWith('opensky_')) st.result = `${r.flights.length} flights${r.airport ? ` ${r.direction === 'departure' ? 'from' : 'to'} ${r.airport}` : ` by ${r.icao24}`}`;
+              else if (e.name === 'aircraft_profile' || e.name === 'aircraft_history') st.result = r.flights != null && typeof r.flights === 'number' ? `${r.flights} flights` : r.note ? String(r.note).slice(0, 80) : 'done';
+              else if (e.name === 'known_cases') st.result = `${r.total ?? r.cases?.length ?? 0} cases`;
+              else if (e.name === 'zone_coverage') st.result = r.days_with_coverage != null ? `${r.days_with_coverage} days covered` : 'done';
+              else st.result = 'done';
+            }
+          } else if (e.type === 'notice') { addStep({ name: 'notice', text: e.text!, status: 'done', ended: Date.now() }); cur.phase = e.text!.replace(/…$/, ''); cur.phaseAt = Date.now(); }
           else if (e.type === 'usage' && e.usage) {
             cur.usd = e.usage.usd;
             chat.usage = { ...before, usd: before.usd + e.usage.usd, calls: before.calls + e.usage.calls, input: before.input + e.usage.input,
@@ -210,13 +237,14 @@ Use the map_* tools to show what your answer is about. Each call REPLACES what i
       chat.history = out.messages;
       cur.text = out.text || cur.text;
       if (out.report) cur.verify = out.report;
+      if (thought.trim()) addStep({ name: 'answer', text: 'Composing the answer', status: 'done', ended: Date.now(), thought: thought.trim() });
       // one hint per chat per source: when the archive came up short and a free source that would fill the gap is not connected
       const src = Object.fromEntries(sources.map(x => [x.id, x.on]));
       const gapWords = /unknown|coverage (gap|start|end)|not (found|in the (data|archive|database))|no flights|outside the (data|archive|dataset)|went dark/i;
       if (!src.opensky && !(chat.hinted ?? []).includes('opensky') && (gaps > 0 || gapWords.test(cur.text))) { cur.hint = 'opensky'; (chat.hinted ??= []).push('opensky'); }
       else if (!src.census && !(chat.hinted ?? []).includes('census') && !usedCensus && /\b(export|exports|munition|munitions|ammunition|arms|weapon|weapons|shipment)/i.test(q)) { cur.hint = 'census'; (chat.hinted ??= []).push('census'); }
     } catch (e) {
-      cur.cards = cur.cards.filter((c: any) => !c.pending);
+      for (const st of steps()) if (st.status === 'running') { st.status = 'error'; st.ended = Date.now(); st.result = 'stopped'; }
       const stop = e instanceof StoppedError || abort?.signal.aborted;
       if (stop) cur.cards.push({ kind: 'chip', text: 'Stopped' });
       else cur.text += `\n\n**Error:** ${String(e)}`;
@@ -227,6 +255,15 @@ Use the map_* tools to show what your answer is about. Each call REPLACES what i
     setActivity(null);
     persist();
   }
+
+  const stepLabel = (c: any) => (c.kind === 'chip' ? c.text : c.text);
+  // how long the steps took, first start to last end
+  function stepsSpan(st: any[]) {
+    const s = st.filter(c => c.kind === 'step'); if (!s.length) return '';
+    const t0 = Math.min(...s.map(c => c.started)), t1 = Math.max(...s.map(c => c.ended ?? c.started));
+    return t1 - t0 >= 1000 ? clock(t1 - t0) : '';
+  }
+  const argsText = (inp: any) => Object.entries(inp).filter(([, v]) => v != null && v !== '').map(([k, v]) => `${k}: ${typeof v === 'object' ? JSON.stringify(v) : v}`).join(' · ').slice(0, 240);
 
   // starting points for anyone, as templates: clicking fills the box with the first [placeholder] selected, ready to type over
   const SUGGESTIONS = [
@@ -314,20 +351,55 @@ Use the map_* tools to show what your answer is about. Each call REPLACES what i
       {#if t.role === 'user'}
         <div class="user">{t.text}</div>
       {:else}
-        {@const steps = t.cards.filter((c: any) => c.kind === 'chip')}
+        {@const steps = t.cards.filter((c: any) => c.kind === 'chip' || c.kind === 'step')}
         {@const live = running && ti === active.turns.length - 1}
         {@const skey = `${active.id}-${ti}-steps`}
+        {@const errs = steps.filter((c: any) => c.kind === 'chip' ? c.text.startsWith('Error') : c.status === 'error').length}
         <div class="asst">
           <div class="who" class:live><img class="eye" src="/eye-32.png" srcset="/eye-32.png 1x, /eye-64.png 2x" width="20" height="20" alt="" /><span>SADA</span>{#if t.profile}<i>{t.profile}</i>{/if}</div>
           {#if steps.length}
             <div class="steps" class:open={expanded[skey]}>
               <button class="sh" onclick={() => (expanded[skey] = !expanded[skey])}>
                 {#if live}<span class="spin"></span>{:else}<span class="tick">✓</span>{/if}
-                <span class="lbl">{live ? steps[steps.length - 1].text : `${steps.length} step${steps.length > 1 ? 's' : ''}`}</span>
-                {#if steps.some((c: any) => c.text.startsWith('Error'))}<span class="warnc">{steps.filter((c: any) => c.text.startsWith('Error')).length} retried</span>{/if}
+                <span class="lbl">{live ? (t.phase ?? stepLabel(steps[steps.length - 1])) : `${steps.length} step${steps.length > 1 ? 's' : ''}${stepsSpan(steps) ? ' · ' + stepsSpan(steps) : ''}`}</span>
+                {#if errs}<span class="warnc">{errs} {errs === 1 ? 'retry' : 'retries'}</span>{/if}
                 <span class="car">{expanded[skey] ? '▾' : '▸'}</span>
               </button>
-              {#if expanded[skey]}<div class="sl">{#each steps as c}<div class="st" class:err={c.text.startsWith('Error')}>{c.text}</div>{/each}</div>{/if}
+              {#if expanded[skey]}
+                <div class="tree">
+                  {#each steps as c, si}
+                    {#if c.kind === 'chip'}
+                      <div class="row" class:err={c.text.startsWith('Error')}><span class="rt"><i class="dot"></i><span class="rl">{c.text}</span></span></div>
+                    {:else}
+                      {@const k = `${skey}-${si}`}
+                      {@const has = !!(c.thought || (c.input && Object.keys(c.input).length) || c.progress?.length)}
+                      {#if c.note}<div class="snote">{c.note}</div>{/if}
+                      <div class="row" class:err={c.status === 'error'} class:run={c.status === 'running'}>
+                        <button class="rt" onclick={() => { if (has) expanded[k] = !expanded[k]; }} disabled={!has} title={has ? 'Unfold this step' : undefined}>
+                          <i class="dot"></i>
+                          <span class="rl">{c.text}</span>
+                          {#if c.result}<span class="rr">→ {c.result}</span>{/if}
+                          {#if c.evidenceId}<em class="ev" title="Evidence id, cited in the answer">{c.evidenceId}</em>{/if}
+                          <span class="rd">{c.status === 'running' ? clock(nowTick - c.started) : c.ended ? clock(c.ended - c.started) : ''}</span>
+                          {#if has}<span class="car">{expanded[k] ? '▾' : '▸'}</span>{/if}
+                        </button>
+                      </div>
+                      {#if expanded[k]}
+                        <div class="sub">
+                          {#if c.thought}<details class="think" open={c.name === 'answer'}><summary>Reasoning</summary><pre>{c.thought}</pre></details>{/if}
+                          {#if c.input && Object.keys(c.input).length}<div class="args">{argsText(c.input)}</div>{/if}
+                          {#each c.progress ?? [] as pg}<div class="pg">{pg}</div>{/each}
+                        </div>
+                      {/if}
+                      {#each c.children ?? [] as ch}
+                        {#if ch.kind === 'step'}
+                          <div class="row child" class:err={ch.status === 'error'}><span class="rt"><i class="dot auto"></i><span class="rl">{ch.text}</span>{#if ch.result}<span class="rr">→ {ch.result}</span>{/if}{#if ch.evidenceId}<em class="ev" title="Evidence id, cited in the answer">{ch.evidenceId}</em>{/if}<span class="rd">auto</span></span></div>
+                        {/if}
+                      {/each}
+                    {/if}
+                  {/each}
+                </div>
+              {/if}
             </div>
           {/if}
           {#each t.cards as c, ci}
@@ -488,8 +560,25 @@ Use the map_* tools to show what your answer is about. Each call REPLACES what i
   .tick { color: var(--ok); } .car { letter-spacing: 0; } .warnc { color: var(--obs); }
   .spin { width: 9px; height: 9px; border: 1.5px solid var(--line2); border-top-color: var(--ink); border-radius: 50%; animation: spin .8s linear infinite; flex: none; }
   @keyframes spin { to { transform: rotate(360deg); } }
-  .sl { margin: 8px 0 2px 4px; padding-left: 12px; border-left: 1px solid var(--line2); display: flex; flex-direction: column; gap: 4px; }
-  .st { font-size: 11px; font-family: var(--mono); color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; } .st.err { color: var(--obs); }
+  .tree { margin: 8px 0 4px 4px; padding-left: 12px; border-left: 1px solid var(--line2); display: flex; flex-direction: column; gap: 2px; text-transform: none; letter-spacing: 0; }
+  .snote { font-size: 11.5px; color: var(--muted); font-style: italic; line-height: 1.45; margin: 4px 0 3px; }
+  .row { display: flex; min-width: 0; }
+  /* one step: dot, label, evidence tag, duration, caret on the first line; its result on a second line under the label */
+  .rt { display: grid; grid-template-columns: 6px minmax(0, 1fr) auto auto auto; column-gap: 8px; row-gap: 1px; align-items: center; border: 0; border-radius: 3px; padding: 3px 4px 3px 0; width: 100%; text-align: left; font-size: 11px; font-family: var(--mono); color: var(--muted); text-transform: none; letter-spacing: 0; min-width: 0; line-height: 1.4; }
+  button.rt:disabled { opacity: 1; cursor: default; } button.rt:hover:not(:disabled) { background: rgba(232,232,232,.04); color: var(--ink); }
+  .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--ok); flex: none; } .run .dot { background: var(--ink); animation: pulse 1s ease-in-out infinite; } .err .dot { background: var(--obs); }
+  .dot.auto { background: transparent; border: 1px solid var(--ok); box-sizing: border-box; }
+  .rt .dot { grid-column: 1; grid-row: 1; }
+  .rl { grid-column: 2; grid-row: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--text); }
+  .rr { grid-column: 2 / -1; grid-row: 2; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--faint); }
+  .rt .ev { grid-column: 3; grid-row: 1; } .rd { grid-column: 4; grid-row: 1; font-size: 10px; color: var(--faint); white-space: nowrap; } .rt .car { grid-column: 5; grid-row: 1; }
+  .rt .ev { display: inline-block; font-size: 9.5px; padding: 0 5px; border: 1px solid var(--line2); border-radius: 3px; color: var(--muted); font-style: normal; }
+  .child { padding-left: 14px; }
+  .sub { margin: 0 0 6px 14px; display: flex; flex-direction: column; gap: 4px; }
+  .args, .pg { font-size: 10.5px; font-family: var(--mono); color: var(--faint); overflow-wrap: anywhere; line-height: 1.5; }
+  .think summary { font-size: 9.5px; color: var(--faint); cursor: pointer; text-transform: uppercase; letter-spacing: 1.4px; list-style: none; } .think summary::before { content: '▸ '; } .think[open] summary::before { content: '▾ '; }
+  .think pre { white-space: pre-wrap; font-family: inherit; font-size: 11.5px; line-height: 1.5; color: var(--muted); margin: 4px 0 0; max-height: 280px; overflow: auto; }
+  @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: .3; } }
 
   .card { border: 1px solid var(--line2); border-radius: var(--r); padding: 12px 12px 8px; min-width: 0; overflow: hidden; }
   .ch { display: flex; align-items: center; gap: 8px; justify-content: space-between; margin-bottom: 6px; }

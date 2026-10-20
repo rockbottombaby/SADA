@@ -105,7 +105,7 @@ export interface ORTurn {
 export async function openrouterTurn(o: {
   apiKey: string; model: string; effort: 'low' | 'medium' | 'high'; system: string; messages: any[];
   tools: { name: string; description: string; input_schema: any }[]; signal?: AbortSignal; maxTokens?: number;
-  onText: (t: string) => void; onPhase: (p: string) => void; onActivity: () => void;
+  onText: (t: string) => void; onThink?: (t: string) => void; onPhase: (p: string) => void; onActivity: () => void;
 }): Promise<ORTurn> {
   const body: any = {
     model: o.model, stream: true, max_tokens: o.maxTokens ?? 32000,
@@ -144,7 +144,7 @@ export async function openrouterTurn(o: {
       const ch = j.choices?.[0];
       if (!ch) continue;
       const d = ch.delta ?? {};
-      if (d.reasoning && !reasoning) { reasoning = true; setPhase('Thinking'); }
+      if (d.reasoning) { if (!reasoning) { reasoning = true; setPhase('Thinking'); } if (typeof d.reasoning === 'string') o.onThink?.(d.reasoning); }
       if (d.content) { text += d.content; setPhase('Writing'); o.onText(d.content); }
       for (const tc of d.tool_calls ?? []) {
         const k = tc.index ?? 0;

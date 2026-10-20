@@ -35,6 +35,8 @@ export function describeCall(name: string, a: any): Omit<Activity, 'seq'> {
     case 'live_aircraft': return { ...base, text: a.aircraft || a.callsign ? `Checking if ${a.aircraft || a.callsign} is in the air now` : a.type ? `Finding ${String(a.type).toUpperCase()} aircraft in the air now` : 'Looking at what is in the air right now' };
     case 'case_file': return { ...base, text: a.action === 'add' ? `Adding to the case file: ${a.kind}` : 'Reading the case file' };
     case 'dataset_info': return { ...base, text: 'Checking what the data covers' };
+    case 'known_cases': return { ...base, text: `Checking the documented-shipment library${a.aircraft || a.operator || a.q ? ` for ${a.aircraft || a.operator || a.q}` : ''}` };
+    case 'pinned_flights': return { ...base, text: 'Reading the pinned flights' };
     case 'list_zones': return { ...base, text: 'Looking up airspace names' };
     case 'run_sql': return { ...base, text: 'Running a custom database query' };
     default: return { ...base, text: name.startsWith('map_') ? 'Updating the map' : name.replace(/_/g, ' ') };

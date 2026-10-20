@@ -9,7 +9,7 @@ const PATTERNS: [string, RegExp][] = [
   ['ICAO airport', /\b(?:[A-Z]{4})\b/g],
 ];
 // 4-letter words that are not airport codes, and zone-name tokens, to avoid false alarms
-const IGNORE = new Set(['BIRD', 'NATO', 'ICAO', 'UTC', 'ADSB', 'FIR', 'CTA', 'NOTE', 'DATA', 'WITH', 'FROM', 'THAT', 'THIS', 'ONLY', 'JSON', 'NULL', 'TRUE', 'NONE', 'SOV', 'ISO2', 'ISO3', 'IATA', 'SOVEREIGN',
+const IGNORE = new Set(['SADA', 'BIRD', 'NATO', 'ICAO', 'UTC', 'ADSB', 'FIR', 'CTA', 'NOTE', 'DATA', 'WITH', 'FROM', 'THAT', 'THIS', 'ONLY', 'JSON', 'NULL', 'TRUE', 'NONE', 'SOV', 'ISO2', 'ISO3', 'IATA', 'SOVEREIGN',
   // agencies, programmes and terms that appear in investigative answers and records requests
   'USAF', 'DDTC', 'DSCA', 'ACMI', 'CRAF', 'ITAR', 'FOIA', 'EASA', 'USTC', 'TSAT', 'OFAC', 'UNSC', 'NOTAM', 'SIPRI', 'HTML', 'CSV', 'HTTP', 'NEXT', 'LEAD', 'HIGH', 'MEDIUM', 'WEAK', 'OPEN',
   // ordinary words an answer writes in capitals (headings, emphasis)

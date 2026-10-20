@@ -194,7 +194,7 @@ Needs a free Census API key in Settings.`,
   {
     name: 'opensky_airport_flights',
     description: `Flights arriving at or departing from one airport, from the OpenSky Network (independent ADS-B network; complements ADSB.lol and covers dates outside this dataset).
-Max 7 days per call (one request per day; costs OpenSky credits). Airports are OpenSky's estimates. Needs an OpenSky API client in Settings.`,
+Worldwide receiver coverage, so it often has what this archive lacks. Max 7 days per call (one request per day). Airports are OpenSky's estimates. Needs an OpenSky API client in Settings.`,
     input_schema: {
       type: 'object',
       properties: {
@@ -214,7 +214,7 @@ Max 7 days per call (one request per day; costs OpenSky credits). Airports are O
   },
   {
     name: 'opensky_aircraft_flights',
-    description: 'All flights of one aircraft (ICAO 24-bit hex, e.g. 738c0b) in a date range from the OpenSky Network. Max 14 days per call (one request per day; costs OpenSky credits). Needs an OpenSky API client in Settings.',
+    description: 'All flights of one aircraft (ICAO 24-bit hex, e.g. 738c0b) in a date range from the OpenSky Network. Worldwide receiver coverage: use it for any dated question about an aircraft, alongside the archive, and for every leg whose origin or destination the archive could not record. Max 14 days per call (one request per day). Needs an OpenSky API client in Settings.',
     input_schema: {
       type: 'object',
       properties: {

@@ -11,8 +11,9 @@ import { verifyAnswer, correctionPrompt, collectEvidence, type VerifyReport } fr
 import { openrouterTurn, openrouterWebSearch, addOpenRouterUsage, OR_WEB_SEARCH_TOOL } from './openrouter';
 
 export interface AgentEvent {
-  type: 'text' | 'tool_call' | 'tool_result' | 'server_tool' | 'notice' | 'usage' | 'verify' | 'progress' | 'phase';
+  type: 'text' | 'thinking' | 'tool_call' | 'tool_result' | 'server_tool' | 'notice' | 'usage' | 'verify' | 'progress' | 'phase';
   evidenceId?: string;
+  auto?: boolean; parent?: string;   // a lookup the harness ran itself, nested under the step (parent tool) that prompted it
   text?: string; name?: string; input?: unknown; result?: unknown; error?: string; usage?: Usage; report?: VerifyReport;
 }
 export interface Citation { url: string; title?: string; cited_text?: string }
@@ -98,6 +99,11 @@ Flight database (ADS-B, ADSB.lol, ODbL); covers ONLY these days: ${dateRanges(ct
   cover. When the App state says OpenSky is connected, it is not a last resort: go to it the moment the database returns
   nothing or little for an aircraft, airport or day (a gap here is not a gap there), for any date outside the dataset, and to
   complete an aircraft's recent movements before concluding anything. Cite it as OpenSky; its airports are estimates.
+  When OpenSky is connected, the app attaches OpenSky's flights for the same aircraft and days to any archive result whose
+  legs have an unknown origin or destination (coverage lost), as separate evidence: read it, use it to close the gap, and
+  cite its [E#]. For a dated question about a specific aircraft, run the archive tool and opensky_aircraft_flights for the
+  same dates side by side and reconcile them; never write up a lost track without having asked OpenSky for that day.
+  Take the ICAO hex from the archive result (aircraft_profile and every flight row carry hex); never guess one.
 - live_aircraft: what is in the air RIGHT NOW (ADSB.lol live). The flight database ends yesterday; for "now", "currently",
   "is X flying", use this. Combine: find an aircraft live, then aircraft_profile / aircraft_history for its pattern. Results
   appear on the user's live map. Not received now is a coverage gap, never proof an aircraft is on the ground.
@@ -233,6 +239,24 @@ function describeReads(sql: string): string {
   return [...groups].map(([label, ps]) => `${label} ${ps.length > 4 ? `${ps[0]} … ${ps[ps.length - 1]} (${ps.length})` : ps.join(', ')}`).join('; ');
 }
 
+// Legs in a tool result whose origin or destination the archive could not record (coverage lost mid-air): one OpenSky job per
+// aircraft and day range, newest first, so the harness can fetch what the other network saw
+function unknownEnds(out: any): { hex: string; date_from: string; date_to: string; why: string; callsign?: string; reg?: string }[] {
+  const legs: any[] = Array.isArray(out) ? out : Array.isArray(out?.flights) ? out.flights : Array.isArray(out?.legs) ? out.legs : out?.leg ? [out.leg] : [];
+  const day = (t: number) => new Date(t * 1000).toISOString().slice(0, 10);
+  const jobs = new Map<string, { hex: string; date_from: string; date_to: string; why: string; callsign?: string; reg?: string }>();
+  for (const l of legs) {
+    if (!l || typeof l !== 'object' || !l.hex || l.t0 == null || !('from_code' in l)) continue;
+    const noFrom = !l.from_code, noTo = !l.to_code;
+    if (!noFrom && !noTo) continue;
+    const d0 = day(l.t0), d1 = day(l.t1 ?? l.t0);
+    const key = `${l.hex}|${d0}`;
+    if (jobs.has(key)) continue;
+    jobs.set(key, { hex: String(l.hex).toLowerCase(), date_from: d0, date_to: d1 > d0 ? d1 : d0, why: noFrom && noTo ? 'origin and destination unknown' : noFrom ? 'origin unknown' : 'destination unknown', callsign: (l.callsigns || '').split(' ')[0] || undefined, reg: l.reg || undefined });
+  }
+  return [...jobs.values()].sort((a, b) => (a.date_from < b.date_from ? 1 : -1));
+}
+
 // Stop also cancels the database query in flight (otherwise it would keep the single connection busy)
 let cancelDb: (() => Promise<void>) | null = null;
 export function setDbCancel(f: () => Promise<void>) { cancelDb = f; }
@@ -265,6 +289,7 @@ export async function runAgent(opts: {
   let evidence = collectEvidence(...opts.messages.map(m => (typeof m.content === 'string' ? m.content : JSON.stringify(m.content))));
   let finalText = '', citations: Citation[] = [], jsonRetries = 0, stallRetries = 0, corrected = false, report: VerifyReport | undefined;
   let evidenceN = 0, fullEvidence = '';
+  let autoDays = 0;   // OpenSky day-requests the harness spent on its own this answer (each costs an OpenSky credit)
   const STALL_MS = 240_000;
 // tool budgets: the archive-wide readers (playbooks, the export cross-check, whole-archive lookups) legitimately run for
 // minutes; everything else is seconds
@@ -296,13 +321,14 @@ async function withBudget<T>(p: Promise<T>, ms: number, name: string): Promise<T
     try {
       if (or) {
         const t = await openrouterTurn({ apiKey: opts.apiKey, model: p.model, effort: p.effort, system: systemText, messages, tools: orTools, signal: turnAbort.signal,
-          onText: d => opts.onEvent({ type: 'text', text: d }), onPhase: ph => opts.onEvent({ type: 'phase', text: ph }), onActivity: () => { lastActivity = Date.now(); } });
+          onText: d => opts.onEvent({ type: 'text', text: d }), onThink: d => opts.onEvent({ type: 'thinking', text: d }), onPhase: ph => opts.onEvent({ type: 'phase', text: ph }), onActivity: () => { lastActivity = Date.now(); } });
         msg = { content: t.content, stop_reason: t.stop_reason, usage: t.usage } as any;
         addOpenRouterUsage(usage, t.usage);
       } else {
         const stream = client!.beta.messages.stream(params, { signal: turnAbort.signal });
         stream.on('streamEvent', () => { lastActivity = Date.now(); });
         stream.on('text', (d: string) => opts.onEvent({ type: 'text', text: d }));
+        stream.on('thinking', (d: string) => opts.onEvent({ type: 'thinking', text: d }));
         stream.on('streamEvent', (ev: any) => {
           if (ev.type !== 'content_block_start') return;
           const b = ev.content_block;
@@ -401,6 +427,35 @@ async function withBudget<T>(p: Promise<T>, ms: number, name: string): Promise<T
         if (inp?.zone_id && (Array.isArray(out) ? out.length === 0 : out?.totals?.flights === 0) && u.name !== 'zone_coverage') {
           try { const cov = await untilStopped(toolByName('zone_coverage')!.run(ctx, { zone_id: inp.zone_id, date_from: inp.date_from, date_to: inp.date_to }), opts.signal);
             forModel += '\nRECEIVER COVERAGE of this zone in the period (attached automatically because no flights matched): ' + JSON.stringify(cov); } catch { /* coverage unavailable */ }
+        }
+        // THE HARNESS RESOLVES COVERAGE GAPS ITSELF: an archive result whose legs have unknown ends (coverage lost) gets the same
+        // aircraft's flights from OpenSky for those days attached, as its own evidence, without waiting for the model to ask
+        if (evidenceId && !u.name.startsWith('opensky_')) {
+          const gaps = unknownEnds(out).slice(0, 4);
+          const k = opts.ctx.keys?.() ?? {};
+          if (gaps.length && k.openskyId && k.openskySecret && k.openskyBase && autoDays < 10) {
+            for (const g of gaps) {
+              if (autoDays >= 10) break;
+              const days = Math.round((Date.parse(g.date_to) - Date.parse(g.date_from)) / 86400000) + 1;
+              autoDays += days;
+              const input = { icao24: g.hex, date_from: g.date_from, date_to: g.date_to };
+              try {
+                const os = await untilStopped(withBudget(toolByName('opensky_aircraft_flights')!.run(ctx, input), 60_000, 'opensky_aircraft_flights'), opts.signal);
+                const osId = `E${++evidenceN}`;
+                opts.onEvent({ type: 'tool_result', name: 'opensky_aircraft_flights', input, result: { ...os, reason: `${g.why} (${g.callsign || g.reg || g.hex})` }, evidenceId: osId, auto: true, parent: u.name });
+                const osText = `[evidence ${osId}] ` + JSON.stringify(os);
+                forModel += `\nOPENSKY, ATTACHED AUTOMATICALLY (${g.why} for ${g.callsign || g.reg || g.hex} on ${g.date_from}${g.date_to !== g.date_from ? '–' + g.date_to : ''}; OpenSky is a second network, airports are its estimates; cite it as ${osId}): ` + JSON.stringify(os);
+                evidence += '\n' + osText;
+                try { fullEvidence += '\n' + osText; } catch { /* */ }
+              } catch (e) {
+                if (e instanceof StoppedError) throw e;
+                opts.onEvent({ type: 'tool_result', name: 'opensky_aircraft_flights', input, error: String(e), auto: true, parent: u.name });
+                forModel += `\nOPENSKY lookup for ${g.hex} on ${g.date_from} failed: ${String(e).slice(0, 160)}`;
+              }
+            }
+          } else if (gaps.length && !(k.openskyId && k.openskySecret)) {
+            forModel += `\nNOTE: ${gaps.length}${unknownEnds(out).length > 4 ? '+' : ''} of these legs have an unknown origin or destination (receiver coverage lost). OpenSky is not connected in this browser; connected (free, Settings), it would show those legs worldwide.`;
+          }
         }
         if (evidenceId) forModel = `[evidence ${evidenceId}] ` + forModel;
         evidence += '\n' + forModel;
