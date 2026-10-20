@@ -21,6 +21,9 @@ export const OPENROUTER_MODELS: ORModel[] = [
   { id: 'google/gemini-3.1-pro-preview', label: 'Gemini 3.1 Pro · balanced', tier: 'balanced', tested: false },
   { id: 'deepseek/deepseek-v4-pro', label: 'DeepSeek V4 Pro · balanced', tier: 'balanced', tested: false },
   { id: 'moonshotai/kimi-k2.6', label: 'Kimi K2.6 · balanced', tier: 'balanced', tested: false },
+  { id: 'z-ai/glm-5.3-flash', label: 'GLM 5.3 Flash · fast', tier: 'fast', tested: false },
+  { id: 'z-ai/glm-5.3', label: 'GLM 5.3 · balanced', tier: 'balanced', tested: false },
+  { id: 'z-ai/glm-5.3-prime', label: 'GLM 5.3 Prime · deep', tier: 'deep', tested: false },
 ];
 export const orModel = (id: string) => OPENROUTER_MODELS.find(m => m.id === id) ?? { id, label: id, tier: 'balanced' as const, tested: false };
 
