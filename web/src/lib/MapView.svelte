@@ -122,6 +122,24 @@
         'text-field': ['get', 'name'], 'text-size': ['interpolate', ['linear'], ['zoom'], 1, 11, 5, 14], 'text-font': ['Noto Sans Regular'],
         'text-allow-overlap': true },
         paint: { 'text-color': '#ffffff', 'text-halo-color': '#171717', 'text-halo-width': 1.6 } });
+      // one aircraft's journey (journey.ts): a glowing route with its stops. Solid = seen by receivers, dashed = coverage gap,
+      // dotted = a leg only OpenSky has. Drawn alone, so it reads as one picture.
+      map.addSource('journey', { type: 'geojson', data: empty });
+      map.addSource('journey-stops', { type: 'geojson', data: empty });
+      map.addLayer({ id: 'journey-glow', type: 'line', source: 'journey', layout: { 'line-cap': 'round', 'line-join': 'round' },
+        paint: { 'line-color': '#7fd1ff', 'line-width': ['case', ['==', ['get', 'kind'], 'seen'], 12, 7], 'line-blur': 10, 'line-opacity': ['case', ['==', ['get', 'kind'], 'seen'], 0.38, 0.22] } });
+      map.addLayer({ id: 'journey-gap', type: 'line', source: 'journey', filter: ['==', ['get', 'kind'], 'gap'], layout: { 'line-cap': 'round' },
+        paint: { 'line-color': '#dff3ff', 'line-width': 2.2, 'line-dasharray': [2.4, 2], 'line-opacity': 0.9 } });
+      map.addLayer({ id: 'journey-est', type: 'line', source: 'journey', filter: ['==', ['get', 'kind'], 'estimated'], layout: { 'line-cap': 'round' },
+        paint: { 'line-color': '#8fb8ff', 'line-width': 2.6, 'line-dasharray': [0.2, 2], 'line-opacity': 0.95 } });
+      map.addLayer({ id: 'journey-seen', type: 'line', source: 'journey', filter: ['==', ['get', 'kind'], 'seen'], layout: { 'line-cap': 'round', 'line-join': 'round' },
+        paint: { 'line-color': '#ffffff', 'line-width': 3.2 } });
+      map.addLayer({ id: 'journey-stop-ring', type: 'circle', source: 'journey-stops', paint: { 'circle-radius': 11, 'circle-color': 'rgba(127,209,255,0.18)', 'circle-stroke-color': '#7fd1ff', 'circle-stroke-width': 1.2, 'circle-stroke-opacity': 0.8 } });
+      map.addLayer({ id: 'journey-stop', type: 'circle', source: 'journey-stops', paint: { 'circle-radius': 5, 'circle-color': '#ffffff', 'circle-stroke-color': '#0f0f0f', 'circle-stroke-width': 1.5 } });
+      map.addLayer({ id: 'journey-stop-label', type: 'symbol', source: 'journey-stops', layout: {
+        'text-field': ['format', ['get', 'code'], { 'font-scale': 1.15, 'text-font': ['literal', ['Noto Sans Bold']] }, '\n', {}, ['get', 'sub'], { 'font-scale': 0.88 }],
+        'text-font': ['Noto Sans Regular'], 'text-size': 13, 'text-variable-anchor': ['top', 'bottom', 'left', 'right', 'top-left', 'top-right', 'bottom-left', 'bottom-right'], 'text-radial-offset': 1.1, 'text-justify': 'auto', 'text-max-width': 12, 'text-padding': 4, 'symbol-sort-key': ['get', 'order'] },
+        paint: { 'text-color': '#ffffff', 'text-halo-color': '#0f0f0f', 'text-halo-width': 1.8 } });
       // assistant activity: what it is looking at right now (zone outline, countries, airport pulse)
       map.addLayer({ id: 'act-countries', type: 'fill', source: 'countries', filter: ['in', ['get', 'ISO_A2'], ['literal', []]], paint: { 'fill-color': '#ffffff', 'fill-opacity': 0.07 } }, 'borders');
       map.addLayer({ id: 'act-zone', type: 'line', source: 'zones', filter: ['==', ['get', 'id'], ''], paint: { 'line-color': '#ffffff', 'line-width': 1.6, 'line-dasharray': [2, 2], 'line-opacity': 0.9 } });
@@ -333,6 +351,8 @@
     untrack(frameScene);   // only cameraSeq triggers this; the scene contents are read untracked
   });
   function frameScene() {
+    const j = app.map.journey;
+    if (j) return fitCoords([...j.segs.flatMap(sg => sg.coords), ...j.stops.map(st => [st.lon, st.lat] as [number, number])], 5);
     const P = app.track?.points as { lat: number; lon: number }[] | undefined;
     if (P?.length) return fitCoords(P.map(p => [p.lon, p.lat] as [number, number]));
     const legs = app.map.flows.filter(l => l.from_lat != null && l.to_lat != null).slice(0, MAX_FLOWS);
@@ -391,6 +411,19 @@
     if (leg?.from_lat != null) e.push({ type: 'Feature', properties: { name: lab(leg.from_code, leg.from_cert) }, geometry: { type: 'Point', coordinates: [Number(leg.from_lon), Number(leg.from_lat)] } });
     if (leg?.to_lat != null) e.push({ type: 'Feature', properties: { name: lab(leg.to_code, leg.to_cert) }, geometry: { type: 'Point', coordinates: [Number(leg.to_lon), Number(leg.to_lat)] } });
     ends.setData({ type: 'FeatureCollection', features: e });
+  });
+  $effect(() => {
+    if (!loaded) return;
+    const j = app.map.journey;
+    const lines = map.getSource('journey') as maplibregl.GeoJSONSource, stops = map.getSource('journey-stops') as maplibregl.GeoJSONSource;
+    if (!j) { lines.setData(empty); stops.setData(empty); return; }
+    const hhmm = (t?: number) => (t == null ? '' : new Date(t * 1000).toISOString().slice(11, 16));
+    lines.setData({ type: 'FeatureCollection', features: j.segs.map(sg => ({ type: 'Feature', properties: { kind: sg.kind }, geometry: { type: 'LineString', coordinates: sg.coords } })) });
+    stops.setData({ type: 'FeatureCollection', features: j.stops.map((st, i) => {
+      const times = st.arr != null && st.dep != null ? `${hhmm(st.arr)} → ${hhmm(st.dep)}Z` : st.arr != null ? `arr ${hhmm(st.arr)}Z` : `dep ${hhmm(st.dep)}Z`;
+      const name = st.name.replace(/ (International )?Airport$/i, '').replace(/ Air Base$/i, ' AB');
+      return { type: 'Feature', properties: { order: i, code: st.code + (st.source === 'opensky' ? ' ·OpenSky' : st.cert && !['recorded', 'unrecorded stop', 'opensky'].includes(st.cert) ? ' ?' : ''), sub: `${name.length > 22 ? name.slice(0, 20).trim() + '…' : name}\n${times}` }, geometry: { type: 'Point', coordinates: [st.lon, st.lat] } };
+    }) });
   });
   $effect(() => { const f = app.map.flyTo; if (loaded && f) map.flyTo({ center: [f.lon, f.lat], zoom: f.zoom, duration: 1200 }); });
   $effect(() => { if (loaded && app.map.resetSeq) map.flyTo({ ...home(), duration: 900 }); });
@@ -543,15 +576,17 @@
         <WinCtl win="scene" name="map card" canMax={flowsCount > 0} />
         {#if app.map.scene}<button class="x" title="Clear what is drawn (the view stays)" aria-label="Clear the map" onclick={() => { clearScene(true); setWin('scene', 'normal'); }}>✕</button>{/if}
       </div>
-      {#if sceneMode !== 'min' && app.map.scene && (app.map.focusZone || flowsCount || app.selected || app.map.highlight.length || app.map.area)}
+      {#if sceneMode !== 'min' && app.map.scene && (app.map.journey || app.map.focusZone || flowsCount || app.selected || app.map.highlight.length || app.map.area)}
         <div class="items">
+          {#if app.map.journey}<span class="big"><b>{app.map.journey.stops.length}</b> stops · {app.map.journey.legs.length} legs{app.map.journey.aircraft.type ? ` · ${app.map.journey.aircraft.type}` : ''}{app.map.journey.aircraft.operator ? ` · ${app.map.journey.aircraft.operator}` : ''}</span>{/if}
           {#if flowsCount}<span class="big"><b>{flowsCount.toLocaleString()}</b> flights{flowsCount > MAX_FLOWS ? ` (${MAX_FLOWS.toLocaleString()} drawn)` : ''}</span>{/if}
           {#if app.map.focusZone}<span><i class="sw zone"></i>{zoneName(app.map.focusZone).replace(/: sovereign airspace \(([^)]*)\)/, ' · sovereign airspace ($1)')}</span>{/if}
           {#if app.selected}<span><i class="sw trk"></i>Track {String(app.selected.callsigns || app.selected.reg || '').split(' ')[0]}<button class="unsel" title="Deselect this flight (the rest stays)" aria-label="Deselect" onclick={clearSelection}>✕</button></span>{/if}
           {#if app.map.highlight.length}<span><i class="sw hl"></i>{app.map.highlight.join(', ')}</span>{/if}
           {#if app.map.area}<span><i class="sw area"></i>Drawn area</span>{/if}
-          {#if flowsCount || app.selected}
+          {#if flowsCount || app.selected || app.map.journey}
             <span class="legend">
+              {#if app.map.journey}<span><i style="background:#ffffff"></i>seen by receivers</span><span><i class="dash"></i>coverage gap</span>{#if app.map.journey.segs.some(x => x.kind === 'estimated') || app.map.journey.stops.some(x => x.source !== 'archive')}<span><i style="background:#8fb8ff"></i>OpenSky</span>{/if}<span><i class="sw trk"></i>stop</span>{/if}
               {#if flowsCount}<span><i style="background:#f2c14e"></i>seen by receivers</span><span><i style="background:#8fb8ff"></i>estimated (coverage gap)</span><span><i style="background:#c7a6ff"></i>military</span>{/if}
               {#if app.selected}<span><i style="background:#7fd1ff"></i>track</span><span><i class="dash"></i>coverage gap</span>{/if}
             </span>

@@ -136,8 +136,31 @@ def main():
             n = len(entry.get('to', [])) + len(entry.get('from', [])) + len(entry.get('zone', []))
             print(f'{kind} {period}: {len(months)} months, {n} files, {time.time() - t:.0f} s', flush=True)
 
-    # yearly per-key indexes for one aircraft / one airport, from the monthly sorted copies (the section below builds
-    # those; on a fresh bucket this part waits for the next invocation)
+    # lookups: per month, three re-sorted copies for point lookups (one airport, one aircraft, one flight)
+    if not only or 'lookups' in only:
+        for m in sorted(infos):
+            prev = idx['lookups'].get(m, {})
+            if not force and prev.get('built_utc', '') >= infos[m]['built_utc']:
+                continue
+            t = time.time()
+            legs, lz = src('legs', [m]), src('leg_zones', [m])
+            for name, sql, rg in (
+                ('by_airport', f"SELECT * FROM (SELECT from_code AS code, 'dep' AS role, {LEG_COLS} FROM read_parquet({legs}) "
+                               f"UNION ALL SELECT to_code AS code, 'arr' AS role, {LEG_COLS} FROM read_parquet({legs})) "
+                               f"WHERE code IS NOT NULL AND code <> '' ORDER BY code, t0", 20_000),
+                ('by_hex', f"SELECT {LEG_COLS} FROM read_parquet({legs}) ORDER BY hex, t0", 20_000),
+                ('zones_by_leg', f"SELECT * FROM read_parquet({lz}) ORDER BY leg_id, t_in", 50_000)):
+                out = f'{tmpdir}/{name}.parquet'
+                con.execute(f"COPY ({sql}) TO '{out}' (FORMAT parquet, COMPRESSION zstd, ROW_GROUP_SIZE {rg})")
+                bm.s3.upload_file(out, bm.B, f'v1/flights/{name}/{m}.parquet')
+                os.remove(out)
+            shutil.rmtree(cache, ignore_errors=True)
+            idx['lookups'][m] = {'built_utc': dt.datetime.now(dt.UTC).isoformat(timespec='seconds')}
+            bm.s3.put_object(Bucket=bm.B, Key='v1/index/info.json', Body=json.dumps(idx).encode())
+            print(f'lookups {m}: {time.time() - t:.0f} s', flush=True)
+
+    # yearly per-key indexes for one aircraft / one airport, from the monthly sorted copies built just above (they must
+    # come first: built from last night's copies, a yearly index lagged its months by a day, and a fresh bucket got none)
     all_years = '--all-years' in args
     this_year = str(dt.datetime.now(dt.UTC).year)
     for kind, table, keyexpr, cols in (('hex', 'by_hex', 'left(hex, 2)', LEG_COLS), ('airport', 'by_airport', 'left(code, 2)', 'code, role, ' + LEG_COLS)):
@@ -164,29 +187,6 @@ def main():
             idx[kind][year] = {'months': months, 'built_utc': dt.datetime.now(dt.UTC).isoformat(timespec='seconds'), 'keys': keys}
             bm.s3.put_object(Bucket=bm.B, Key='v1/index/info.json', Body=json.dumps(idx).encode())
             print(f'{kind} {year}: {len(months)} months, {len(keys)} files, {time.time() - t:.0f} s', flush=True)
-
-    # lookups: per month, three re-sorted copies for point lookups (one airport, one aircraft, one flight)
-    if not only or 'lookups' in only:
-        for m in sorted(infos):
-            prev = idx['lookups'].get(m, {})
-            if not force and prev.get('built_utc', '') >= infos[m]['built_utc']:
-                continue
-            t = time.time()
-            legs, lz = src('legs', [m]), src('leg_zones', [m])
-            for name, sql, rg in (
-                ('by_airport', f"SELECT * FROM (SELECT from_code AS code, 'dep' AS role, {LEG_COLS} FROM read_parquet({legs}) "
-                               f"UNION ALL SELECT to_code AS code, 'arr' AS role, {LEG_COLS} FROM read_parquet({legs})) "
-                               f"WHERE code IS NOT NULL AND code <> '' ORDER BY code, t0", 20_000),
-                ('by_hex', f"SELECT {LEG_COLS} FROM read_parquet({legs}) ORDER BY hex, t0", 20_000),
-                ('zones_by_leg', f"SELECT * FROM read_parquet({lz}) ORDER BY leg_id, t_in", 50_000)):
-                out = f'{tmpdir}/{name}.parquet'
-                con.execute(f"COPY ({sql}) TO '{out}' (FORMAT parquet, COMPRESSION zstd, ROW_GROUP_SIZE {rg})")
-                bm.s3.upload_file(out, bm.B, f'v1/flights/{name}/{m}.parquet')
-                os.remove(out)
-            shutil.rmtree(cache, ignore_errors=True)
-            idx['lookups'][m] = {'built_utc': dt.datetime.now(dt.UTC).isoformat(timespec='seconds')}
-            bm.s3.put_object(Bucket=bm.B, Key='v1/index/info.json', Body=json.dumps(idx).encode())
-            print(f'lookups {m}: {time.time() - t:.0f} s', flush=True)
 
     shutil.rmtree(tmpdir, ignore_errors=True)
     done = bm.done_days()

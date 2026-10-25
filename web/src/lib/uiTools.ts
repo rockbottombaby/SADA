@@ -5,6 +5,7 @@
 import type { ToolDef } from './tools';
 import { lit, idT0, T, TOOLS } from './tools';
 import { app, selectLeg, setScene, clearScene, flyTo, zoneName, type Leg } from './state.svelte';
+import { buildJourney, journeySummary } from './journey';
 
 const KEEP = { keep_current: { type: 'boolean', description: 'add to the scene you already drew in this answer instead of replacing the map (default false)' } };
 // keep only when the current scene is this tab's assistant scene; never build on the user's or another tab's drawing
@@ -72,6 +73,22 @@ export const UI_TOOLS: ToolDef[] = [
     async run(_ctx, a) {
       await selectLeg(a.leg_id, false, { ...meta(`Track of ${a.leg_id}`), add: keep(a) });
       return { shown: a.leg_id, note: 'track drawn on the map; the user can click the flight to open its details' };
+    },
+  },
+  {
+    name: 'map_show_journey',
+    description: 'Draw ONE aircraft\'s journey over a few days as a single highlighted route, alone on the map: every stop in order with arrival and departure times (labelled), every leg from the archive\'s positions (solid = seen by receivers, dashed = coverage gap), and — when OpenSky is connected — the stops and legs the archive lost, drawn dotted. Use it for "show the route", "highlight the flight", "the trip from X via Y to Z", or any claim about where one aircraft went: it is the picture of the journey. Returns the stops with times and sources. Max 14 days with OpenSky.',
+    input_schema: { type: 'object', properties: {
+      aircraft: { type: 'string', description: 'registration (N62FF) or ICAO hex (a81467)' },
+      date_from: { type: 'string', description: 'YYYY-MM-DD, first day of the journey' }, date_to: { type: 'string', description: 'YYYY-MM-DD, last day (inclusive)' },
+      label: { type: 'string', description: 'optional title for the map card' }, opensky: { type: 'boolean', description: 'use OpenSky for the legs the archive lost (default true when connected)' } },
+      required: ['aircraft', 'date_from', 'date_to'] },
+    async run(ctx, a) {
+      const j = await buildJourney(ctx, { aircraft: a.aircraft, date_from: a.date_from, date_to: a.date_to, opensky: a.opensky });
+      if (a.label) j.title = String(a.label);
+      setScene({ journey: j }, meta(j.title), false);
+      app.lastLegs = { title: j.title, legs: j.legs };
+      return journeySummary(j);
     },
   },
   {

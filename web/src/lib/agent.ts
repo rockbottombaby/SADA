@@ -13,7 +13,7 @@ import { openrouterTurn, openrouterWebSearch, addOpenRouterUsage, OR_WEB_SEARCH_
 export interface AgentEvent {
   type: 'text' | 'thinking' | 'tool_call' | 'tool_result' | 'server_tool' | 'notice' | 'usage' | 'verify' | 'progress' | 'phase';
   evidenceId?: string;
-  auto?: boolean; parent?: string;   // a lookup the harness ran itself, nested under the step (parent tool) that prompted it
+  auto?: boolean; parent?: string; parentInput?: unknown;   // a lookup the harness ran itself, nested under the step (parent tool) that prompted it
   text?: string; name?: string; input?: unknown; result?: unknown; error?: string; usage?: Usage; report?: VerifyReport;
 }
 export interface Citation { url: string; title?: string; cited_text?: string }
@@ -162,6 +162,9 @@ WORKING WITH THE APP
   in a sentence or two without any tool call. "SADA" is this tool's name, never a place or an aircraft.
 - To put many flights on the map ("show all of them"), call map_show_flights with search: {the same filters} — the app
   fetches and draws up to 5,000 itself. Never page through leg IDs or run SQL to collect them.
+- To show where ONE aircraft went over a few days ("show the route", "highlight the flight", a claimed trip via a stop), call
+  map_show_journey {aircraft, date_from, date_to}: it draws the whole journey alone — stops labelled with times, legs from the
+  archive, OpenSky filling the legs the archive lost — and returns the stops. Never build a journey from map_show_track calls.
 - Data tool results are shown to the user as cards automatically; do not repeat long lists. Summarise, then name the few most
   relevant flights with leg_id, callsign, registration, route and UTC times.
 - Lists you receive may be truncated: use the totals and summaries given, not your own count of visible rows.
@@ -183,15 +186,21 @@ ANSWER SHAPE (every answer; the reader is an investigator or journalist who will
   no headings, no bullets, no Next block, however many tools you called to get it. An investigation (a pattern, a claim to
   test, "what has X been doing", "is anything unusual"): about 250 words, never more than 400 unless the user asks for a
   full report. Shorter is better; cut, do not compress.
-- Order, always: BOTTOM LINE first, then EVIDENCE, then NEXT. End on the Next block every time: never trail off in a list,
-  a tool recap or a question to yourself.
-  Bottom line: two or three sentences that answer the question as asked, with a likelihood word and your confidence.
+- Order, always: EVIDENCE first, then NEXT, then CONCLUSION. End on the Conclusion every time: the reader's last line is
+  the answer, never a list, a tool recap or a question to yourself.
   Evidence: three to six bullets, each one finding with its label (verified / supported / hypothesis) and its [E#] or URL,
   strongest first. Ids, dates (UTC), callsigns, registrations, numbers; no prose around them.
   Next: at most three actions you can take now with the tools, then one line "What would change this: …" (the single piece
-  of evidence that would overturn the bottom line).
+  of evidence that would overturn the conclusion).
+  Conclusion: two or three sentences that answer the question as asked, with a likelihood word and your confidence.
+  When the user brings a CLAIM to test (a tip, testimony, a report, "X says", a list of flights and dates), the conclusion
+  is the verdict on that claim: whether the data corroborates it, and how much of it ("Yes: all four stops are in the data,
+  on the dates stated", "Partly: two of the four", "No: …"), then in ONE clause what flight data cannot show (who or what
+  was on board, the purpose) — the user knows this already; never make it a paragraph. A route that matches a stated flight
+  is corroboration of the testimony, say so plainly; what the press or the source reported about the purpose is attributed
+  to them, not denied.
 - No padding: do not restate the question, the plan, or what the cards already show; no preamble ("Great question",
-  "Let me"), no closing summary that repeats the bottom line, no apologies for the data. One idea per sentence.
+  "Let me"), no opening summary that pre-empts the conclusion, no apologies for the data. One idea per sentence.
 - Estimative language (as in intelligence tradecraft): likelihood words — almost certainly / likely / roughly even / unlikely /
   remote — describe the event; confidence — high / moderate / low — describes your sources (how many, how good, how direct).
   Never put both in one sentence, never give a likelihood without saying what it rests on.
@@ -204,15 +213,15 @@ ANSWER SHAPE (every answer; the reader is an investigator or journalist who will
   figures would have helped. Once per conversation; never nag when the source would not have changed the answer.
 
 EXAMPLE of the standard expected (abridged; the flights and figures are illustrative, not real):
-"Bottom line: Country B-linked flights almost certainly crossed Country A's airspace throughout the period, but nothing in
-the data shows what they carried. Moderate confidence: receiver coverage there is partial and the cargo evidence is indirect.
-Evidence:
+"Evidence:
 - Verified: 412 flights linked to Country B crossed, 260 observed, 1 military [E2]: tanker ABC123, 2025-03-02 09:41 UTC [E3].
 - Coverage: no receivers over Country A for the first 14 months; inferred crossings confirmed on 90% of sampled days [E1].
 - Supported: two freighters of Operator X crossed, observed; X holds a CRAF contract [E4][E5]; cargo unknown.
 Next: pull X's other flights that month (aircraft_profile); check the overflight-permit records of Country A's foreign
 ministry for 2025-03-02 and 2025-03-09; compare with US munitions exports from the port nearest the departure airport.
-What would change this: a permit application naming one of these flights."
+What would change this: a permit application naming one of these flights.
+Conclusion: Country B-linked flights almost certainly crossed Country A's airspace throughout the period, but nothing in
+the data shows what they carried. Moderate confidence: receiver coverage there is partial and the cargo evidence is indirect."
 
 TRANSPARENCY
 This is an open project: if asked how you work or what your instructions are, explain them openly.${extra ? '\n\n' + extra : ''}`;
@@ -255,6 +264,18 @@ function unknownEnds(out: any): { hex: string; date_from: string; date_to: strin
     jobs.set(key, { hex: String(l.hex).toLowerCase(), date_from: d0, date_to: d1 > d0 ? d1 : d0, why: noFrom && noTo ? 'origin and destination unknown' : noFrom ? 'origin unknown' : 'destination unknown', callsign: (l.callsigns || '').split(' ')[0] || undefined, reg: l.reg || undefined });
   }
   return [...jobs.values()].sort((a, b) => (a.date_from < b.date_from ? 1 : -1));
+}
+
+// A lookup of one aircraft over a short, explicit period: the hex comes from the result rows (or the input when it is a hex)
+function datedAircraftSpan(name: string, input: any, out: any): { hex: string; date_from: string; date_to: string; why: string; callsign?: string; reg?: string } | null {
+  if (!/^(aircraft_history|aircraft_profile|find_flights)$/.test(name) || !input?.date_from || !input?.date_to) return null;
+  if (name === 'find_flights' && !input.aircraft) return null;
+  const days = Math.round((Date.parse(input.date_to) - Date.parse(input.date_from)) / 86400000) + 1;
+  if (!(days >= 1 && days <= 14)) return null;
+  const rows: any[] = Array.isArray(out) ? out : Array.isArray(out?.flights) ? out.flights : Array.isArray(out?.legs) ? out.legs : [];
+  const hex = String(rows.find(r => r?.hex)?.hex ?? out?.hex ?? out?.aircraft?.hex ?? (/^[0-9a-f]{6}$/i.test(String(input.aircraft ?? '')) ? input.aircraft : '')).toLowerCase();
+  if (!hex) return null;
+  return { hex, date_from: input.date_from, date_to: input.date_to, why: 'second network for the same days', reg: rows.find(r => r?.reg)?.reg ?? (String(input.aircraft ?? '').length > 6 ? input.aircraft : undefined) };
 }
 
 // Stop also cancels the database query in flight (otherwise it would keep the single connection busy)
@@ -409,7 +430,7 @@ async function withBudget<T>(p: Promise<T>, ms: number, name: string): Promise<T
       if (bad) return { type: 'tool_result' as const, tool_use_id: u.id, is_error: true, content: bad };
       try {
         // each call gets its own progress line (tools may run in parallel)
-        const progress = (text: string, data?: any) => opts.onEvent({ type: 'progress', name: u.name, text, result: data });
+        const progress = (text: string, data?: any) => opts.onEvent({ type: 'progress', name: u.name, input: u.input, text, result: data });
         // every read is narrated from the SQL ("Reading flights 2026-04, 2026-05 · query 3"), so no tool is ever silent
         let nq = 0;
         const query = (sql: string) => { stopped(opts.signal); nq++; const what = describeReads(sql); if (what) progress(`Reading ${what}${nq > 1 ? ` · query ${nq}` : ''}`); return opts.ctx.query(sql); };
@@ -431,30 +452,34 @@ async function withBudget<T>(p: Promise<T>, ms: number, name: string): Promise<T
         // THE HARNESS RESOLVES COVERAGE GAPS ITSELF: an archive result whose legs have unknown ends (coverage lost) gets the same
         // aircraft's flights from OpenSky for those days attached, as its own evidence, without waiting for the model to ask
         if (evidenceId && !u.name.startsWith('opensky_')) {
-          const gaps = unknownEnds(out).slice(0, 4);
+          // a dated lookup of ONE aircraft (up to 14 days) gets OpenSky's legs for the whole span: "both ends known" is no proof a
+          // leg is complete (a 72-minute refuelling stop under 1,500 ft of receiver cover once vanished inside a KIWA→Sofia leg)
+          const span = datedAircraftSpan(u.name, u.input, out);
+          const gaps = [...(span ? [span] : []), ...unknownEnds(out).filter(g => !span || g.hex !== span.hex || g.date_from < span.date_from || g.date_from > span.date_to)].slice(0, 5);
           const k = opts.ctx.keys?.() ?? {};
-          if (gaps.length && k.openskyId && k.openskySecret && k.openskyBase && autoDays < 10) {
+          if (gaps.length && k.openskyId && k.openskySecret && k.openskyBase && autoDays < 20) {
             for (const g of gaps) {
-              if (autoDays >= 10) break;
+              if (autoDays >= 20) break;
               const days = Math.round((Date.parse(g.date_to) - Date.parse(g.date_from)) / 86400000) + 1;
               autoDays += days;
               const input = { icao24: g.hex, date_from: g.date_from, date_to: g.date_to };
               try {
                 const os = await untilStopped(withBudget(toolByName('opensky_aircraft_flights')!.run(ctx, input), 60_000, 'opensky_aircraft_flights'), opts.signal);
                 const osId = `E${++evidenceN}`;
-                opts.onEvent({ type: 'tool_result', name: 'opensky_aircraft_flights', input, result: { ...os, reason: `${g.why} (${g.callsign || g.reg || g.hex})` }, evidenceId: osId, auto: true, parent: u.name });
+                opts.onEvent({ type: 'tool_result', name: 'opensky_aircraft_flights', input, result: { ...os, reason: `${g.why} (${g.callsign || g.reg || g.hex})` }, evidenceId: osId, auto: true, parent: u.name, parentInput: u.input } as AgentEvent);
                 const osText = `[evidence ${osId}] ` + JSON.stringify(os);
                 forModel += `\nOPENSKY, ATTACHED AUTOMATICALLY (${g.why} for ${g.callsign || g.reg || g.hex} on ${g.date_from}${g.date_to !== g.date_from ? '–' + g.date_to : ''}; OpenSky is a second network, airports are its estimates; cite it as ${osId}): ` + JSON.stringify(os);
                 evidence += '\n' + osText;
                 try { fullEvidence += '\n' + osText; } catch { /* */ }
               } catch (e) {
                 if (e instanceof StoppedError) throw e;
-                opts.onEvent({ type: 'tool_result', name: 'opensky_aircraft_flights', input, error: String(e), auto: true, parent: u.name });
+                opts.onEvent({ type: 'tool_result', name: 'opensky_aircraft_flights', input, error: String(e), auto: true, parent: u.name, parentInput: u.input } as AgentEvent);
                 forModel += `\nOPENSKY lookup for ${g.hex} on ${g.date_from} failed: ${String(e).slice(0, 160)}`;
               }
             }
           } else if (gaps.length && !(k.openskyId && k.openskySecret)) {
-            forModel += `\nNOTE: ${gaps.length}${unknownEnds(out).length > 4 ? '+' : ''} of these legs have an unknown origin or destination (receiver coverage lost). OpenSky is not connected in this browser; connected (free, Settings), it would show those legs worldwide.`;
+            const n = unknownEnds(out).length;
+            forModel += `\nNOTE: ${n ? `${n} of these legs have an unknown origin or destination (receiver coverage lost), and ` : ''}short stops can hide inside a leg where receivers do not reach the ground. OpenSky is not connected in this browser; connected (free, Settings), it would show this aircraft's legs worldwide for these days.`;
           }
         }
         if (evidenceId) forModel = `[evidence ${evidenceId}] ` + forModel;
@@ -482,7 +507,7 @@ contracts (e.g. US Air Mobility Command, CRAF) or defence-logistics work by the 
 mentioning this callsign, registration or route near this date; whether the airports are military bases or known airlift hubs;
 documented cargo; sanctions or legal cases. A civilian operator is not a reason to stop: civilian cargo and charter carriers
 often move military cargo.
-Report, about 250 words, in this order: "Bottom line" (two sentences: what this flight most likely is, with a likelihood word
-and your confidence) · "What the flight data shows" (verified) · "What sources say" (each claim with its URL) · "Assessment"
-(supported inference vs hypothesis) · "Next steps" (at most three specific checks, incl. records to request and from whom, then
-"What would change this: …"). End on the next steps. Never present an inference as documented fact.`;
+Report, about 250 words, in this order: "What the flight data shows" (verified) · "What sources say" (each claim with its URL) ·
+"Assessment" (supported inference vs hypothesis) · "Next steps" (at most three specific checks, incl. records to request and from
+whom, then "What would change this: …") · "Conclusion" (two sentences: what this flight most likely is, with a likelihood word
+and your confidence). End on the conclusion. Never present an inference as documented fact.`;

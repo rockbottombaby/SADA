@@ -116,7 +116,9 @@
     const ex = app.explore;
     const view = ex.kind === 'query' ? `search results: ${describe(ex.spec)} (find_flights ${JSON.stringify(toArgs(ex.spec))})`
       : ex.kind === 'area' ? 'flights through a drawn area' : ex.kind === 'list' ? ex.title : 'the empty search form';
+    const ds = app.ctx!.manifest.dates, today = new Date().toISOString().slice(0, 10);
     return [
+      `- today: ${today} (UTC); "this year" means ${today.slice(0, 4)}. The archive covers ${ds[0]} to ${ds[ds.length - 1]}`,
       `- period of the user's current search: ${app.dateFrom ? `${app.dateFrom} to ${app.dateTo}` : 'none chosen (ask, or pick one that fits the question)'}`,
       `- map: ${describeScene()}`,
       `- selected flight: ${app.selected ? `leg_id ${app.selected.leg_id} (${app.selected.callsigns || ''} ${app.selected.reg || ''})`.replace(/\s+\)/, ')') : 'none'}`,
@@ -156,7 +158,12 @@
     let gaps = 0, usedCensus = false;
     let thought = '';   // reasoning streamed since the last step; it belongs to the next step (or to the answer)
     const steps = () => cur.cards.filter((c: any) => c.kind === 'step') as Extract<Card, { kind: 'step' }>[];
-    const stepFor = (name?: string, running = true) => [...steps()].reverse().find(c => c.name === name && (!running || c.status === 'running'));
+    // the step a result belongs to: same tool AND same arguments (several calls of one tool run in parallel), else the latest
+    const stepFor = (name?: string, running = true, input?: unknown) => {
+      const cands = [...steps()].reverse().filter(c => c.name === name && (!running || c.status === 'running'));
+      if (input !== undefined) { const key = JSON.stringify(input); const hit = cands.find(c => JSON.stringify(c.input) === key); if (hit) return hit; }
+      return cands[0];
+    };
     // the model's words and reasoning so far become the note of the step that follows them; the answer text starts afresh
     const takeNotes = () => { const note = cur.text.trim(), th = thought.trim(); cur.text = ''; thought = ''; return { note: note || undefined, thought: th || undefined }; };
     const addStep = (c: Omit<Extract<Card, { kind: 'step' }>, 'kind' | 'started'> & { started?: number }) => { const st = { kind: 'step' as const, started: Date.now(), ...c }; cur.cards.push(st); return st; };
@@ -164,7 +171,7 @@
       const out = await runAgent({
         apiKey: activeKey(), profile: prof, ctx: app.ctx!, web: useWeb, signal: abort.signal, extraTools: [...UI_TOOLS, caseTool(() => (chat.case ??= { items: [] }), persist)],
         system: systemPrompt(app.ctx!, `The user sees a map next to this chat. Results of data tools are shown to the user as cards in the chat automatically.
-Use the map_* tools to show what your answer is about. Each call REPLACES what is on the map (one clean scene per answer); set keep_current: true only to add to the scene you drew in this answer (e.g. a zone, then the flights through it). map_focus_zone for a country/FIR, map_show_flights for the flights you discuss, map_show_track for one flight, map_country_labels to highlight countries, map_fly_to for a point of interest. The app state says what the map currently shows and who drew it.`),
+Use the map_* tools to show what your answer is about. Each call REPLACES what is on the map (one clean scene per answer); set keep_current: true only to add to the scene you drew in this answer (e.g. a zone, then the flights through it). map_focus_zone for a country/FIR, map_show_flights for the flights you discuss, map_show_journey for where one aircraft went over a few days (the whole trip with its stops, alone on the map), map_show_track for one flight, map_country_labels to highlight countries, map_fly_to for a point of interest. The app state says what the map currently shows and who drew it.`),
         messages: chat.history,
         onEvent: e => {
           if (e.type === 'text') cur.text += e.text;
@@ -183,11 +190,11 @@ Use the map_* tools to show what your answer is about. Each call REPLACES what i
           if (e.type === 'phase') { cur.phase = e.text; cur.phaseAt = Date.now(); trailPhase(e.text!); return; }
           if (e.type === 'progress') {
             trailProgress(chat.id, e.name!, e.text!, e.result as any); cur.phase = e.text; cur.phaseAt ??= Date.now(); if (app.map.activity) setActivity({ ...app.map.activity, text: e.text! });
-            const st = stepFor(e.name); if (st) { st.progress ??= []; if (st.progress[st.progress.length - 1] !== e.text) st.progress.push(e.text!); if (st.progress.length > 8) st.progress.shift(); }
+            const st = stepFor(e.name, true, e.input); if (st) { st.progress ??= []; if (st.progress[st.progress.length - 1] !== e.text) st.progress.push(e.text!); if (st.progress.length > 8) st.progress.shift(); }
             return;
           }
           if (e.type === 'tool_result' && e.auto) {   // a lookup the harness ran itself, nested under the step that prompted it
-            const parent = stepFor(e.parent, false);
+            const parent = stepFor(e.parent, false, (e as any).parentInput);
             const r: any = e.result;
             const child: Card = { kind: 'step', name: e.name!, auto: true, started: Date.now(), ended: Date.now(), status: e.error ? 'error' : 'done', evidenceId: e.evidenceId,
               text: `OpenSky · ${r?.reason ?? 'coverage gap'}`, result: e.error ? e.error.replace(/^Error: /, '').slice(0, 80) : `${r.flights.length} flight${r.flights.length === 1 ? '' : 's'}${r.flights.length ? ': ' + r.flights.slice(0, 3).map((f: any) => `${f.from ?? '?'}→${f.to ?? '?'}`).join(', ') : ''}` };
@@ -197,7 +204,7 @@ Use the map_* tools to show what your answer is about. Each call REPLACES what i
           }
           if (e.type === 'tool_result') trailResult(chat.id, e.name!, e.input, e.result, e.error, e.evidenceId);
           if (e.type === 'tool_result') {   // the step finished: close it with its result in one line
-            const st = stepFor(e.name) ?? addStep({ name: e.name!, text: describeCall(e.name!, e.input).text, input: e.input, status: 'running' });
+            const st = stepFor(e.name, true, e.input) ?? addStep({ name: e.name!, text: describeCall(e.name!, e.input).text, input: e.input, status: 'running' });
             st.status = e.error ? 'error' : 'done'; st.ended = Date.now(); st.evidenceId = e.evidenceId;
             const r: any = e.result, inp: any = e.input;
             if (e.error) st.result = e.error.replace(/^Error: /, '').slice(0, 100);
@@ -220,7 +227,7 @@ Use the map_* tools to show what your answer is about. Each call REPLACES what i
               else if (e.name === 'us_contracts') st.result = `${r.company}: ${r.awards_shown} ${r.scope === 'Department of Defense' ? 'DoD ' : ''}awards, $${Math.round(r.total_shown_usd).toLocaleString()}`;
               else if (e.name === 'aircraft_registry') st.result = r.company ? `${r.company}: ${r.aircraft_count} aircraft` : `${r.query}: ${r.aircraft?.[0]?.owner ?? r.aircraft?.[0]?.operator ?? 'not found'}`;
               else if (e.name?.startsWith('opensky_')) st.result = `${r.flights.length} flights${r.airport ? ` ${r.direction === 'departure' ? 'from' : 'to'} ${r.airport}` : ` by ${r.icao24}`}`;
-              else if (e.name === 'aircraft_profile' || e.name === 'aircraft_history') st.result = r.flights != null && typeof r.flights === 'number' ? `${r.flights} flights` : r.note ? String(r.note).slice(0, 80) : 'done';
+              else if (e.name === 'aircraft_profile' || e.name === 'aircraft_history') { const t = r.aircraft && typeof r.aircraft === 'object' ? r.aircraft : r; st.result = t.flights != null ? `${Number(t.flights).toLocaleString()} flights${t.reg ? ' · ' + t.reg : ''}${t.type ? ' · ' + t.type : ''}${r.period ? ` · ${r.period[0]} → ${r.period[1]}` : ''}` : r.note ? String(r.note).slice(0, 80) : 'done'; }
               else if (e.name === 'known_cases') st.result = `${r.total ?? r.cases?.length ?? 0} cases`;
               else if (e.name === 'zone_coverage') st.result = r.days_with_coverage != null ? `${r.days_with_coverage} days covered` : 'done';
               else st.result = 'done';

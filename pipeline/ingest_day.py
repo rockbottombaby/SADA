@@ -24,6 +24,9 @@ from shapely.geometry import shape
 OAM = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 DATA = f'{OAM}/data'
 LOW_FT = 1500           # at/below this (or 'ground') = on or near an airport
+STOP_GAP = 20 * 60      # a silence this long that starts or ends below STOP_FT, within STOP_KM, after cruise = an unrecorded stop
+STOP_FT = 6000
+STOP_KM = 80
 GAP_INF = 300           # gaps longer than this (s) at altitude get great-circle interpolation for zone tests
 H3_RES = 3
 # known GNSS-spoofing destinations (positions get "teleported" there): Beirut OLBA, Amman Queen Alia OJAI
@@ -109,13 +112,23 @@ class Day:
                 _, km = slerp(lat[a], lon[a], lat[b], lon[b], 1)
                 if gap - km / 850 * 3600 > 100 * 60:
                     runs.append((start, a, None, 'hidden')); start = b
+            elif gap > STOP_GAP and (0 <= alt[a] <= STOP_FT or 0 <= alt[b] <= STOP_FT) and alt[start:a + 1].max() >= 10000:
+                # a shorter silence that begins or ends low, after a real flight: room for a landing where receivers do not
+                # reach the ground (a 72-minute refuelling stop at Keflavík once vanished inside a Phoenix → Sofia leg because
+                # its last received point was at 2,150 ft). Nearby and far longer than the distance needs = an unrecorded stop.
+                _, km = slerp(lat[a], lon[a], lat[b], lon[b], 1)
+                if km <= STOP_KM and gap - km / 850 * 3600 > 15 * 60:
+                    runs.append((start, a, None, 'hidden')); start = b
         runs.append((start, air[-1], None, None))
         n = len(t)
         for i, (a, b, _, endst) in enumerate(runs):
-            if t[b] - t[a] < 600 and not (t[a] - self.d0 < 900 or self.d0 + 86400 - t[b] < 900):
+            # a short run is noise, unless it is the piece of a flight on either side of a hidden stop (a departure seen
+            # for five minutes, then silence, then the arrival): dropping those made the whole flight vanish
+            beside_stop = endst == 'hidden' or (i > 0 and runs[i - 1][3] == 'hidden')
+            if t[b] - t[a] < 600 and not beside_stop and not (t[a] - self.d0 < 900 or self.d0 + 86400 - t[b] < 900):
                 continue
             seg_alt = alt[a:b + 1]
-            if seg_alt.max() < 3000:
+            if seg_alt.max() < 3000 and not (beside_stop and b - a >= 2):
                 continue
             o = best_low(a - 1, -1, t, alt, low) if a > 0 and low[a - 1] else None
             de = best_low(b + 1, 1, t, alt, low) if b + 1 < n and low[b + 1] else None

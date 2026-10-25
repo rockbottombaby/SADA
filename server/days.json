@@ -3028,7 +3028,7 @@
 {
 "date": "2024-03-22",
 "tag": "v2024.03.22-planes-readsb-prod-0",
-"size": 2259947520,
+"size": 2008207360,
 "urls": [
 "https://github.com/adsblol/globe_history_2024/releases/download/v2024.03.22-planes-readsb-prod-0/v2024.03.22-planes-readsb-prod-0.tar.aa",
 "https://github.com/adsblol/globe_history_2024/releases/download/v2024.03.22-planes-readsb-prod-0/v2024.03.22-planes-readsb-prod-0.tar.ab"
@@ -3282,7 +3282,7 @@
 {
 "date": "2024-04-22",
 "tag": "v2024.04.22-planes-readsb-prod-0",
-"size": 4017469440,
+"size": 2018119680,
 "urls": [
 "https://github.com/adsblol/globe_history_2024/releases/download/v2024.04.22-planes-readsb-prod-0/v2024.04.22-planes-readsb-prod-0.tar.aa",
 "https://github.com/adsblol/globe_history_2024/releases/download/v2024.04.22-planes-readsb-prod-0/v2024.04.22-planes-readsb-prod-0.tar.ab"
@@ -11428,6 +11428,91 @@
 "urls": [
 "https://github.com/adsblol/globe_history_2026/releases/download/v2026.10.13-planes-readsb-prod-0/v2026.10.13-planes-readsb-prod-0.tar.aa",
 "https://github.com/adsblol/globe_history_2026/releases/download/v2026.10.13-planes-readsb-prod-0/v2026.10.13-planes-readsb-prod-0.tar.ab"
+]
+},
+{
+"date": "2026-10-14",
+"tag": "v2026.10.14-planes-readsb-prod-0",
+"size": 3947779072,
+"urls": [
+"https://github.com/adsblol/globe_history_2026/releases/download/v2026.10.14-planes-readsb-prod-0/v2026.10.14-planes-readsb-prod-0.tar.aa",
+"https://github.com/adsblol/globe_history_2026/releases/download/v2026.10.14-planes-readsb-prod-0/v2026.10.14-planes-readsb-prod-0.tar.ab"
+]
+},
+{
+"date": "2026-10-15",
+"tag": "v2026.10.15-planes-readsb-prod-0",
+"size": 4040928256,
+"urls": [
+"https://github.com/adsblol/globe_history_2026/releases/download/v2026.10.15-planes-readsb-prod-0/v2026.10.15-planes-readsb-prod-0.tar.aa",
+"https://github.com/adsblol/globe_history_2026/releases/download/v2026.10.15-planes-readsb-prod-0/v2026.10.15-planes-readsb-prod-0.tar.ab",
+"https://github.com/adsblol/globe_history_2026/releases/download/v2026.10.15-planes-readsb-prod-0/v2026.10.15-planes-readsb-prod-0.tar.ac"
+]
+},
+{
+"date": "2026-10-16",
+"tag": "v2026.10.16-planes-readsb-prod-0",
+"size": 3825404416,
+"urls": [
+"https://github.com/adsblol/globe_history_2026/releases/download/v2026.10.16-planes-readsb-prod-0/v2026.10.16-planes-readsb-prod-0.tar.aa",
+"https://github.com/adsblol/globe_history_2026/releases/download/v2026.10.16-planes-readsb-prod-0/v2026.10.16-planes-readsb-prod-0.tar.ab"
+]
+},
+{
+"date": "2026-10-17",
+"tag": "v2026.10.17-planes-readsb-prod-0",
+"size": 3554607104,
+"urls": [
+"https://github.com/adsblol/globe_history_2026/releases/download/v2026.10.17-planes-readsb-prod-0/v2026.10.17-planes-readsb-prod-0.tar.aa",
+"https://github.com/adsblol/globe_history_2026/releases/download/v2026.10.17-planes-readsb-prod-0/v2026.10.17-planes-readsb-prod-0.tar.ab"
+]
+},
+{
+"date": "2026-10-18",
+"tag": "v2026.10.18-planes-readsb-prod-0",
+"size": 3701467136,
+"urls": [
+"https://github.com/adsblol/globe_history_2026/releases/download/v2026.10.18-planes-readsb-prod-0/v2026.10.18-planes-readsb-prod-0.tar.aa",
+"https://github.com/adsblol/globe_history_2026/releases/download/v2026.10.18-planes-readsb-prod-0/v2026.10.18-planes-readsb-prod-0.tar.ab"
+]
+},
+{
+"date": "2026-10-19",
+"tag": "v2026.10.19-planes-readsb-prod-0",
+"size": 4004710912,
+"urls": [
+"https://github.com/adsblol/globe_history_2026/releases/download/v2026.10.19-planes-readsb-prod-0/v2026.10.19-planes-readsb-prod-0.tar.aa",
+"https://github.com/adsblol/globe_history_2026/releases/download/v2026.10.19-planes-readsb-prod-0/v2026.10.19-planes-readsb-prod-0.tar.ab",
+"https://github.com/adsblol/globe_history_2026/releases/download/v2026.10.19-planes-readsb-prod-0/v2026.10.19-planes-readsb-prod-0.tar.ac"
+]
+},
+{
+"date": "2026-10-20",
+"tag": "v2026.10.20-planes-readsb-prod-0",
+"size": 4021636096,
+"urls": [
+"https://github.com/adsblol/globe_history_2026/releases/download/v2026.10.20-planes-readsb-prod-0/v2026.10.20-planes-readsb-prod-0.tar.aa",
+"https://github.com/adsblol/globe_history_2026/releases/download/v2026.10.20-planes-readsb-prod-0/v2026.10.20-planes-readsb-prod-0.tar.ab",
+"https://github.com/adsblol/globe_history_2026/releases/download/v2026.10.20-planes-readsb-prod-0/v2026.10.20-planes-readsb-prod-0.tar.ac"
+]
+},
+{
+"date": "2026-10-21",
+"tag": "v2026.10.21-planes-readsb-prod-0",
+"size": 3977106944,
+"urls": [
+"https://github.com/adsblol/globe_history_2026/releases/download/v2026.10.21-planes-readsb-prod-0/v2026.10.21-planes-readsb-prod-0.tar.aa",
+"https://github.com/adsblol/globe_history_2026/releases/download/v2026.10.21-planes-readsb-prod-0/v2026.10.21-planes-readsb-prod-0.tar.ab"
+]
+},
+{
+"date": "2026-10-22",
+"tag": "v2026.10.22-planes-readsb-prod-0",
+"size": 4061022208,
+"urls": [
+"https://github.com/adsblol/globe_history_2026/releases/download/v2026.10.22-planes-readsb-prod-0/v2026.10.22-planes-readsb-prod-0.tar.aa",
+"https://github.com/adsblol/globe_history_2026/releases/download/v2026.10.22-planes-readsb-prod-0/v2026.10.22-planes-readsb-prod-0.tar.ab",
+"https://github.com/adsblol/globe_history_2026/releases/download/v2026.10.22-planes-readsb-prod-0/v2026.10.22-planes-readsb-prod-0.tar.ac"
 ]
 }
 ]

@@ -39,6 +39,7 @@ export function describeCall(name: string, a: any): Omit<Activity, 'seq'> {
     case 'pinned_flights': return { ...base, text: 'Reading the pinned flights' };
     case 'list_zones': return { ...base, text: 'Looking up airspace names' };
     case 'run_sql': return { ...base, text: 'Running a custom database query' };
+    case 'map_show_journey': return { ...base, text: `Drawing the journey of ${a.aircraft ?? 'the aircraft'}` };
     default: return { ...base, text: name.startsWith('map_') ? 'Updating the map' : name.replace(/_/g, ' ') };
   }
 }

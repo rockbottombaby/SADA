@@ -1,6 +1,7 @@
 import type { Ctx, Row, ZoneMeta } from './tools';
 import { TOOLS, flightDossier } from './tools';
 import type { QuerySpec } from './query.svelte';
+import type { Journey } from './journey';
 
 export type Leg = Row & { leg_id: string; hex: string; t0: number; t1: number; from_lat?: number; from_lon?: number; to_lat?: number; to_lon?: number };
 
@@ -29,6 +30,7 @@ export const app = $state({
     flows: [] as Leg[],                 // flights drawn as arcs (from Explore or from a chat card)
     flowsLabel: '',
     highlight: [] as string[],          // ISO3 codes highlighted
+    journey: null as Journey | null,     // one aircraft's stops and legs over a few days (journey.ts), drawn alone
     flyTo: null as null | { lat: number; lon: number; zoom: number; seq: number },
     resetSeq: 0,
     drawMode: false,
@@ -74,27 +76,28 @@ export function togglePin(leg: Leg) { const i = app.pins.findIndex(p => String(p
 export interface SceneMeta { title: string; by: 'you' | 'assistant'; chat?: string }
 export interface Scene extends SceneMeta {
   zone: string | null; flows: Leg[]; flowsLabel: string; highlight: string[]; area: [number, number][] | null;
-  selected: Leg | null; dossier: any; track: any;
+  selected: Leg | null; dossier: any; track: any; journey?: Journey | null;
 }
 const snapshot = (meta: SceneMeta): Scene => ({
   ...meta, zone: app.map.focusZone, flows: app.map.flows, flowsLabel: app.map.flowsLabel, highlight: app.map.highlight,
-  area: app.map.area, selected: app.selected, dossier: app.dossier, track: app.track,
+  area: app.map.area, selected: app.selected, dossier: app.dossier, track: app.track, journey: app.map.journey,
 });
 function apply(sc: Scene) {
   app.map.focusZone = sc.zone; app.map.flows = sc.flows; app.map.flowsLabel = sc.flowsLabel; app.map.highlight = sc.highlight;
-  app.map.area = sc.area; app.selected = sc.selected; app.dossier = sc.dossier; app.track = sc.track;
+  app.map.area = sc.area; app.selected = sc.selected; app.dossier = sc.dossier; app.track = sc.track; app.map.journey = sc.journey ?? null;
   app.map.scene = { title: sc.title, by: sc.by, chat: sc.chat };
   app.inspectorOpen = false;
   app.map.cameraSeq++;
 }
-export interface SceneSpec { zone?: string | null; flows?: Leg[]; flowsLabel?: string; highlight?: string[]; area?: [number, number][] | null; track?: { selected: Leg; dossier: any; track: any } | null }
+export interface SceneSpec { zone?: string | null; flows?: Leg[]; flowsLabel?: string; highlight?: string[]; area?: [number, number][] | null; track?: { selected: Leg; dossier: any; track: any } | null; journey?: Journey | null }
 export function setScene(spec: SceneSpec, meta: SceneMeta, add = false) {
   const base: Scene = add && app.map.scene ? snapshot(app.map.scene)
-    : { ...meta, zone: null, flows: [], flowsLabel: '', highlight: [], area: null, selected: null, dossier: null, track: null };
+    : { ...meta, zone: null, flows: [], flowsLabel: '', highlight: [], area: null, selected: null, dossier: null, track: null, journey: null };
   const sc: Scene = { ...base, ...meta,
     ...(spec.zone !== undefined ? { zone: spec.zone } : {}), ...(spec.flows !== undefined ? { flows: spec.flows, flowsLabel: spec.flowsLabel ?? '' } : {}),
     ...(spec.highlight !== undefined ? { highlight: spec.highlight } : {}), ...(spec.area !== undefined ? { area: spec.area } : {}),
-    ...(spec.track !== undefined ? (spec.track ? spec.track : { selected: null, dossier: null, track: null }) : {}) };
+    ...(spec.track !== undefined ? (spec.track ? spec.track : { selected: null, dossier: null, track: null }) : {}),
+    ...(spec.journey !== undefined ? { journey: spec.journey } : {}) };
   apply(sc);
   // history: drop anything after the current position (like a browser), cap at 30 scenes
   app.map.history = [...app.map.history.slice(0, app.map.histIdx + 1), sc].slice(-30);
@@ -102,7 +105,7 @@ export function setScene(spec: SceneSpec, meta: SceneMeta, add = false) {
   if (meta.chat) app.map.chatScenes[meta.chat] = sc;
 }
 export function clearScene(keepCamera = false) {
-  apply({ title: '', by: 'you', zone: null, flows: [], flowsLabel: '', highlight: [], area: null, selected: null, dossier: null, track: null });
+  apply({ title: '', by: 'you', zone: null, flows: [], flowsLabel: '', highlight: [], area: null, selected: null, dossier: null, track: null, journey: null });
   app.map.scene = null;
   if (!keepCamera) app.map.resetSeq++;
 }
@@ -115,7 +118,7 @@ export function restoreChatScene(chat: string) { const sc = app.map.chatScenes[c
 export function describeScene() {
   const sc = app.map.scene;
   if (!sc) return 'empty world map';
-  const parts = [app.map.focusZone && `zone ${app.map.focusZone}`, app.map.flows.length && `${app.map.flows.length} flight lines`,
+  const parts = [app.map.journey && `journey ${app.map.journey.title}`, app.map.focusZone && `zone ${app.map.focusZone}`, app.map.flows.length && `${app.map.flows.length} flight lines`,
     app.selected && `track of leg ${app.selected.leg_id}`, app.map.highlight.length && `highlighted ${app.map.highlight.join(', ')}`,
     app.map.area && 'a drawn area'].filter(Boolean);
   return `"${sc.title}" drawn by ${sc.by === 'you' ? 'the user' : sc.chat && sc.chat !== app.map.activeChat ? 'the assistant in another chat tab' : 'you (the assistant)'}: ${parts.join(', ') || 'nothing'}`;

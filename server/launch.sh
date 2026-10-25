@@ -1,6 +1,7 @@
 #!/bin/zsh
 # Start the full backfill on a fresh Hetzner server. Runs unattended; this Mac can be closed afterwards.
-# usage: oam/server/launch.sh [server_type=ccx53] [deadline_hours=14] [shard=0/1] [workers=auto]
+# usage: [STAGE=oam-stage] oam/server/launch.sh [server_type=ccx53] [deadline_hours=14] [shard=0/1] [workers=auto]
+# STAGE: write to that bucket with the R2_STAGE_* key (see build.sh); the shard then also helps the others (--steal).
 #   e.g. two servers in parallel: launch.sh ccx53 14 0/2 ; launch.sh ccx53 14 1/2
 # Safety: the server deletes itself when the job ends (success or crash), and a systemd timer deletes it
 # after deadline_hours no matter what. Max cost = hourly price x deadline_hours.
@@ -20,7 +21,14 @@ SSH=(ssh -i $KEY -o StrictHostKeyChecking=accept-new -o UserKnownHostsFile=/dev/
 B=$(mktemp -d); mkdir -p $B/oam/pipeline $B/oam/data/zones $B/oam/server
 cp oam/pipeline/ingest_day.py $B/oam/pipeline/; cp oam/data/zones/zones_full.geojson $B/oam/data/zones/
 cp oam/server/backfill.py oam/server/days.json $B/oam/server/
-grep -E '^(R2_|HCLOUD_TOKEN)' .env > $B/oam/server/env; chmod 600 $B/oam/server/env
+if [ -n "${STAGE:-}" ]; then
+  [ "$STAGE" != "$R2_BUCKET" ] && [ -n "${R2_STAGE_ACCESS_KEY_ID:-}" ] && [ -n "${R2_STAGE_SECRET_ACCESS_KEY:-}" ] || { echo "STAGE needs its own bucket and R2_STAGE_* keys in .env"; exit 1; }
+  printf 'R2_ENDPOINT=%s\nR2_ACCESS_KEY_ID=%s\nR2_SECRET_ACCESS_KEY=%s\nR2_BUCKET=%s\nHCLOUD_TOKEN=%s\n' \
+    "$R2_ENDPOINT" "$R2_STAGE_ACCESS_KEY_ID" "$R2_STAGE_SECRET_ACCESS_KEY" "$STAGE" "$HCLOUD_TOKEN" > $B/oam/server/env
+else
+  grep -E '^(R2_|HCLOUD_TOKEN)' .env | grep -v '^R2_STAGE_' > $B/oam/server/env
+fi
+chmod 600 $B/oam/server/env
 COPYFILE_DISABLE=1 tar czf $B.tgz -C $B oam; rm -rf $B
 
 python3 - "$TYPE" "$NAME" "${LOC:-fsn1}" > $B.json <<PY
@@ -47,7 +55,7 @@ systemd-run --quiet --on-active=${HOURS}h --unit=oam-deadline /opt/oam/deadline.
 cat > /opt/oam/job.sh <<'X'
 #!/bin/bash
 set -a; . /opt/oam/oam/server/env; set +a
-/opt/oam/.venv/bin/python -I /opt/oam/oam/server/backfill.py /opt/oam/oam/server/days.json --shard $SHARD ${WORKERS:+--workers $WORKERS} --self-delete
+/opt/oam/.venv/bin/python -I /opt/oam/oam/server/backfill.py /opt/oam/oam/server/days.json --shard $SHARD ${WORKERS:+--workers $WORKERS} ${STAGE:+--steal} --self-delete
 # reached only if the job crashed before self-deleting: delete the server anyway
 /opt/oam/deadline.sh
 X

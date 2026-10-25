@@ -154,7 +154,10 @@ export function keyedSrc(ctx: Ctx, kind: 'hex' | 'airport', key: string, t0: num
   const months = (ctx.manifest.months ?? []).filter(m => { const [y, mo] = m.split('-').map(Number); return Date.UTC(y, mo - 1, 1) / 1000 < t1 && Date.UTC(y, mo, 1) / 1000 > t0; });
   if (!months.length) return null;
   const k = key.toLowerCase(), files: string[] = [], left = new Set(months);
-  const yearly = ctx.manifest.index?.[kind], yf = ctx.manifest.files[`index_${kind}`];
+  // the yearly index is a re-sorted copy, rebuilt after the months: a short span (up to 3 months) reads the monthly sorted
+  // copies, the source of truth, which is as fast and always as fresh as the month (a merged leg once lingered in the yearly
+  // index for a day after its month had been rebuilt with the split)
+  const yearly = months.length <= 3 ? undefined : ctx.manifest.index?.[kind], yf = ctx.manifest.files[`index_${kind}`];
   if (yearly && yf) for (const [year, v] of Object.entries(yearly)) {
     if (!v.months.some(m => left.has(m))) continue;
     for (const m of v.months) left.delete(m);

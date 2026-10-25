@@ -1,7 +1,7 @@
 // Sessions: everything built in this browser — the chat tabs with their answers, case files and research trails — saved
 // to a file and loaded back, like a desktop app's documents. The browser also keeps the current session by itself
 // (IndexedDB); the file is the copy that survives a cleared browser, moves between machines, and can be shared.
-import { app } from './state.svelte';
+import { app, restoreChatScene, type Scene } from './state.svelte';
 import { trail, type Trail } from './trail.svelte';
 
 export interface SessionFile {
@@ -12,6 +12,7 @@ export interface SessionFile {
   activeId: string;
   trails: Record<string, Trail>; // research trails by chat id
   pins?: any[];                  // flights of interest
+  scenes?: Record<string, Scene>; // what the assistant drew on the map, by chat id (the active chat's comes back on load)
 }
 
 // Chat.svelte owns the chat tabs; it registers how to read and replace them
@@ -26,7 +27,9 @@ export function buildSession(): SessionFile {
   const ids = new Set(chats.map((c: any) => c.id));
   const trails: Record<string, Trail> = {};
   for (const [id, t] of Object.entries(trail.byChat)) if (ids.has(id)) trails[id] = JSON.parse(JSON.stringify(t));
-  return { sada_session: 1, saved_at: new Date().toISOString(), app: location.origin, chats, activeId, trails, pins: JSON.parse(JSON.stringify(app.pins)) };
+  const scenes: Record<string, Scene> = {};
+  for (const [id, sc] of Object.entries(app.map.chatScenes)) if (ids.has(id)) scenes[id] = JSON.parse(JSON.stringify(sc));
+  return { sada_session: 1, saved_at: new Date().toISOString(), app: location.origin, chats, activeId, trails, pins: JSON.parse(JSON.stringify(app.pins)), scenes };
 }
 
 export function applySession(f: SessionFile) {
@@ -37,6 +40,8 @@ export function applySession(f: SessionFile) {
   for (const [id, t] of Object.entries(f.trails ?? {})) if (t && Array.isArray((t as Trail).steps)) trails[id] = t as Trail;
   trail.byChat = trails; trail.focus = null; trail.seq++;
   app.pins = Array.isArray(f.pins) ? f.pins.filter(p => p && p.leg_id) : [];
+  app.map.chatScenes = f.scenes && typeof f.scenes === 'object' ? f.scenes : {};
+  if (typeof f.activeId === 'string') restoreChatScene(f.activeId);
 }
 
 const stamp = () => { const d = new Date(), p = (n: number) => String(n).padStart(2, '0'); return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}-${p(d.getHours())}${p(d.getMinutes())}`; };
