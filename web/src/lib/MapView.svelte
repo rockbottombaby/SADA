@@ -701,6 +701,9 @@
   }
   /* the amber beta note: below the zoom buttons on the desktop (nothing else uses that column), centred above the dock on phones */
   .betanote { position: absolute; z-index: 4; bottom: 4px; right: 36px; display: inline-flex; align-items: center; gap: 7px; padding: 4px 6px 4px 9px; background: rgba(18,18,18,.85); border: 1px solid rgba(242,193,78,.45); border-radius: 999px; color: var(--obs); font-size: 10px; letter-spacing: .4px; white-space: nowrap; }
+  /* the ⓘ attribution opens leftwards along the same strip: the note steps aside while it is open */
+  .betanote { transition: opacity .18s; }
+  :global(.stage:has(.maplibregl-compact-show)) .betanote { opacity: 0; pointer-events: none; }
   .betanote i { width: 6px; height: 6px; border-radius: 50%; background: var(--obs); flex: none; }
   .betanote .x { border: 0; background: none; padding: 0 3px; color: rgba(242,193,78,.7); font-size: 10px; cursor: pointer; line-height: 1; }
   .betanote .x:hover { color: var(--obs); background: none; }
